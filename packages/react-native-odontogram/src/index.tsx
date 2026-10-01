@@ -1,6 +1,13 @@
 import { type FC, type ReactNode, useCallback, useMemo, useState } from "react";
 import Svg, { G, Path, Rect, Text } from "react-native-svg";
-import { NewTeethPaths, teethPaths } from "../../../src/data";
+import {
+	NewTeethPaths,
+	convertFDIToNotation,
+	getToothNotations,
+	quadrants as newquadrants,
+	oldquadrants,
+	teethPaths,
+} from "../../../src/legacy";
 import type {
 	Notation,
 	OdontogramColors,
@@ -8,13 +15,7 @@ import type {
 	ToothConditionGroup,
 	ToothDetail,
 } from "../../../src/type";
-import {
-	convertFDIToNotation,
-	getToothNotations,
-	getViewBox,
-	quadrants as newquadrants,
-	oldquadrants,
-} from "../../../src/utils";
+import { getViewBox } from "../../../src/utils";
 
 export interface NativeOdontogramProps {
 	defaultSelected?: string[];

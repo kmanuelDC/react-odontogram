@@ -2,11 +2,8 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Odontogram from "../src/Odontogram";
-import {
-	convertFDIToNotation,
-	getToothNotations,
-	mapToCssVars,
-} from "../src/utils";
+import { buildToothDetail, formatLegacyNumber } from "../src/compat";
+import { mapToCssVars } from "../src/utils";
 
 describe("Odontogram", () => {
 	it("renders all permanent teeth by default", () => {
@@ -242,13 +239,13 @@ describe("Odontogram", () => {
 
 describe("notation helpers", () => {
 	it("converts FDI notation to Universal and Palmer", () => {
-		expect(convertFDIToNotation("teeth-21", "Universal")).toBe("9");
-		expect(convertFDIToNotation("teeth-21", "Palmer")).toBe("1UL");
-		expect(convertFDIToNotation("teeth-21", "FDI")).toBe("21");
+		expect(formatLegacyNumber("teeth-21", "Universal")).toBe("9");
+		expect(formatLegacyNumber("teeth-21", "Palmer")).toBe("1UL");
+		expect(formatLegacyNumber("teeth-21", "FDI")).toBe("21");
 	});
 
 	it("returns complete notation object", () => {
-		expect(getToothNotations("teeth-48")).toEqual({
+		expect(buildToothDetail("teeth-48", "legacy").notations).toEqual({
 			fdi: "48",
 			universal: "32",
 			palmer: "8LR",

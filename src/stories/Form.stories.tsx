@@ -1,9 +1,8 @@
 import type { Meta, StoryFn } from "@storybook/react-webpack5";
 import { useState } from "react";
 import Odontogram from "..";
-import { teethPaths } from "../data";
+import { buildToothDetail } from "../compat";
 import type { ToothDetail } from "../type";
-import { getToothNotations } from "../utils";
 
 export default {
 	title: "Components/Form",
@@ -44,13 +43,7 @@ export default {
 
 const Template: StoryFn<typeof Odontogram> = (args) => {
 	const [selected, setSelected] = useState<ToothDetail[]>(
-		args.defaultSelected?.map((id) => ({
-			id,
-			notations: getToothNotations(id),
-			type:
-				teethPaths.find((t) => t.name === id.replace("teeth-", "").slice(1))
-					?.type ?? "Unknown",
-		})) ?? [],
+		args.defaultSelected?.map((id) => buildToothDetail(id, "legacy")) ?? [],
 	);
 
 	const handleSubmit = (e: React.FormEvent) => {

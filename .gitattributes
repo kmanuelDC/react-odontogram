@@ -1,0 +1,5 @@
+# Biome espera LF; evita que core.autocrlf deje CRLF en Windows.
+* text=auto eol=lf
+
+*.png binary
+*.svg text eol=lf

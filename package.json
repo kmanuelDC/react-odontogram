@@ -36,6 +36,7 @@
 		"commit": "cz",
 		"storybook": "storybook dev -p 6006",
 		"storybook:build": "storybook build",
+		"baseline:capture": "node scripts/capture-baseline.mjs",
 		"example:responsive": "cd examples/responsive-site && vite --host 127.0.0.1 --port 5174",
 		"example:responsive:build": "cd examples/responsive-site && vite build",
 		"release": "pnpm build && pnpm release-it",

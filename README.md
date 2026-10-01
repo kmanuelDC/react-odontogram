@@ -198,7 +198,11 @@ Example JSON output:
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `defaultSelected` | `string[]` | `[]` | Tooth IDs selected on first render. |
+| `dentition` | `"permanent" \| "primary"` | `"permanent"` | Teeth to draw: 32 permanent (FDI 11–48) or 20 primary (FDI 51–85). See [Primary dentition](#-primary-dentition). |
+| `value` | `string[]` | — | Selected tooth IDs of a controlled chart; update it from `onChange`. |
+| `defaultValue` | `string[]` | `[]` | Tooth IDs selected on first render of an uncontrolled chart. |
+| `defaultSelected` | `string[]` | `[]` | Alias of `defaultValue`. |
+| `idFormat` | `"legacy" \| "fdi"` | `"legacy"` | IDs returned by `onChange` and the form input: `"teeth-11"` or `"11"`. Inputs accept both. |
 | `singleSelect` | `boolean` | `false` | Allow selecting only one tooth at a time (clicking the selected tooth clears it). |
 | `onChange` | `(selectedTeeth: ToothDetail[]) => void` | — | Called whenever selection changes. |
 | `name` | `string` | `"teeth"` | Name used for hidden form input. |
@@ -209,11 +213,13 @@ Example JSON output:
 | `tooltip` | `{ placement?: Placement; margin?: number; content?: ReactNode \| ((payload?: ToothDetail) => ReactNode) }` | `{ placement: "top", margin: 10 }` | Tooltip behavior and custom content renderer. |
 | `showTooltip` | `boolean` | `true` | Enables/disables tooltip rendering. |
 | `showHalf` | `"full" \| "upper" \| "lower"` | `"full"` | Render full chart or only upper/lower arches. |
-| `maxTeeth` | `number` | `8` | Number of teeth per quadrant (for baby/mixed dentition views). |
-| `teethConditions` | `ToothConditionGroup[]` | `undefined` | Colorize specific teeth by condition. |
-| `readOnly` | `boolean` | `false` | Disable interactions and selection changes. |
+| `maxTeeth` | `number` | — | **Deprecated.** Cuts each quadrant to its first teeth. `maxTeeth={5}` shows permanent premolars, not primary teeth: use `dentition="primary"`. |
+| `conditions` | `ToothConditionGroup[]` | `undefined` | Colorize specific teeth by condition. |
+| `teethConditions` | `ToothConditionGroup[]` | `undefined` | **Deprecated** alias of `conditions`. |
+| `disabled` | `boolean` | `false` | Disable interactions and selection changes. |
+| `readOnly` | `boolean` | `false` | Alias of `disabled`. |
 | `showLabels` | `boolean` | `false` | Show the condition legend under the chart. |
-| `layout` | `"circle" \| "square"` | `"circle"` | Render classic arch layout or square/row layout. |
+| `layout` | `"arch" \| "horizontal"` | `"arch"` | Arch or row layout. `"circle"` and `"square"` still work but are deprecated. |
 | `styles` | `React.CSSProperties` | `undefined` | Inline styles applied to the root container. |
 
 The separate `react-native-odontogram` package supports the shared selection, notation, color, condition, read-only, half-chart, and layout props. Native-specific sizing is controlled with `width`, `height`, and `style`.
@@ -241,11 +247,31 @@ type Placement =
 ```ts
 type ToothConditionGroup = {
   label: string;
-  teeth: string[]; // e.g. ["teeth-11", "teeth-12"]
+  teeth: string[]; // either ID format, e.g. ["teeth-11", "12"]
   outlineColor: string;
   fillColor: string;
 };
 ```
+
+---
+
+## 🧒 Primary dentition
+
+```tsx
+<Odontogram dentition="primary" idFormat="fdi" defaultValue={["51", "52", "65"]} />
+<Odontogram dentition="primary" layout="horizontal" />
+```
+
+Draws the 20 primary teeth (FDI 51–55, 61–65, 71–75, 81–85) in the `arch`
+or `horizontal` layout, with the same selection, conditions, tooltip, legend
+and half charts as the permanent chart. Universal numbers are `A`–`T`.
+
+> **Provisional shapes.** The primary tooth outlines are approximations for
+> visual development. They are not clinically validated anatomy and must not
+> be used for diagnosis.
+
+`maxTeeth={5}` is not a primary dentition: it shows permanent incisors,
+canine and premolars. It is deprecated in favor of `dentition="primary"`.
 
 ---
 

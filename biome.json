@@ -73,5 +73,45 @@
 	},
 	"formatter": {
 		"enabled": true
-	}
+	},
+	"overrides": [
+		{
+			"include": ["scripts/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off",
+						"noConsoleLog": "off"
+					}
+				}
+			}
+		},
+		{
+			"include": ["src/core/**", "tests/core/**"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noExcessiveCognitiveComplexity": "off",
+						"noForEach": "off",
+						"noVoid": "off",
+						"useSimplifiedLogicExpression": "off"
+					},
+					"performance": {
+						"useTopLevelRegex": "off"
+					},
+					"style": {
+						"noNonNullAssertion": "off",
+						"noParameterAssign": "off",
+						"noParameterProperties": "off",
+						"useExplicitLengthCheck": "off",
+						"useNumberNamespace": "off",
+						"useSingleCaseStatement": "off"
+					},
+					"suspicious": {
+						"noMisplacedAssertion": "off"
+					}
+				}
+			}
+		}
+	]
 }

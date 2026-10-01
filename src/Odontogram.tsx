@@ -4,34 +4,45 @@ import {
 	type FC,
 	type KeyboardEvent,
 	useCallback,
+	useEffect,
 	useMemo,
-	useRef,
-	useState,
 } from "react";
 import ConditionLabels from "./Labels";
-import { Teeth } from "./Teeth";
 import { OdontogramTooltip } from "./Tooltip";
-import { NewTeethPaths, teethPaths } from "./data";
-import type {
-	OdontogramProps,
-	Placement,
-	ToothConditionGroup,
-	ToothDetail,
-	ToothInteractionEvent,
-} from "./type";
+import { ToothLayer } from "./ToothLayer";
 import {
-	convertFDIToNotation,
-	getToothNotations,
-	getViewBox,
-	mapToCssVars,
-	quadrants as newquadrants,
-	oldquadrants,
-	placements,
-} from "./utils";
+	buildToothDetail,
+	formatPublicId,
+	isLegacyLayout,
+	normalizeConditions,
+	normalizeLayout,
+	resolveDisabled,
+	toFdiId,
+	warnDeprecated,
+} from "./compat";
+import { useOdontogram } from "./hooks/useOdontogram";
+import { useToothSelection } from "./hooks/useToothSelection";
+import { useToothTooltip } from "./hooks/useToothTooltip";
+import type { OdontogramProps } from "./type";
+import { mapToCssVars } from "./utils";
 
 export { getViewBox } from "./utils";
 
+const lightThemeColors = {
+	"--dark-blue": "#3e5edc",
+	"--base-blue": "#8a98be",
+	"--light-blue": "#c6ccf8",
+};
+
+const darkThemeColors = {
+	"--dark-blue": "#aab6ff",
+	"--base-blue": "#d0d5f6",
+	"--light-blue": "#5361e6",
+};
+
 export const Odontogram: FC<OdontogramProps> = ({
+	value,
+	defaultValue,
 	defaultSelected = [],
 	singleSelect = false,
 	onChange,
@@ -46,276 +57,107 @@ export const Odontogram: FC<OdontogramProps> = ({
 	showTooltip = true,
 	showHalf = "full",
 	name,
-	maxTeeth = 8,
+	dentition = "permanent",
+	maxTeeth,
 	teethConditions,
-	readOnly = false,
+	conditions,
+	readOnly,
+	disabled,
 	showLabels = false,
-	layout = "circle",
+	layout,
+	idFormat = "legacy",
 	styles,
 }) => {
 	/**
-	 * Memo: tooth type lookup
+	 * Compatibility: internal IDs are plain FDI ("11"); `idFormat` only
+	 * applies where IDs leave the component.
 	 */
-
-	const teethpath = layout === "circle" ? teethPaths : NewTeethPaths;
-
-	const quadrants = layout === "circle" ? oldquadrants : newquadrants;
-
-	const toothTypeByName = useMemo(
-		() => new Map(teethpath.map((t) => [t.name, t.type])),
-		[teethpath],
+	const resolvedLayout = normalizeLayout(layout);
+	const isDisabled = resolveDisabled(disabled, readOnly);
+	const conditionGroups = useMemo(
+		() => normalizeConditions(conditions, teethConditions),
+		[conditions, teethConditions],
 	);
 
-	/**
-	 * Helpers
-	 */
-	const getToothType = useCallback(
-		(id: string) => {
-			const toothName = id.replace("teeth-", "").slice(1);
-			return toothTypeByName.get(toothName) ?? "Unknown";
-		},
-		[toothTypeByName],
-	);
-
-	const clampMaxTeeth = useCallback(
-		(value: number | undefined) => {
-			if (typeof value !== "number" || Number.isNaN(value)) {
-				return teethpath.length;
-			}
-			return Math.max(0, Math.min(teethpath.length, Math.floor(value)));
-		},
-		[teethpath],
-	);
-
-	const buildToothDetail = useCallback(
-		(id: string): ToothDetail => ({
-			id,
-			notations: getToothNotations(id),
-			type: getToothType(id),
-		}),
-		[getToothType],
-	);
-
-	/**
-	 * Theme
-	 */
-	const themeColors =
-		theme === "dark"
-			? {
-					"--dark-blue": "#aab6ff",
-					"--base-blue": "#d0d5f6",
-					"--light-blue": "#5361e6",
-				}
-			: {
-					"--dark-blue": "#3e5edc",
-					"--base-blue": "#8a98be",
-					"--light-blue": "#c6ccf8",
-				};
-
-	/**
-	 * State
-	 */
-	const [selected, setSelected] = useState<Set<string>>(
-		() => new Set(singleSelect ? defaultSelected.slice(0, 1) : defaultSelected),
-	);
-
-	const svgRef = useRef<SVGSVGElement>(null);
-
-	const [tooltipData, setTooltipData] = useState<{
-		active: boolean;
-		position?: {
-			x: number;
-			placement: Placement;
-			margin: number;
-			anchorRect: {
-				top: number;
-				right: number;
-				bottom: number;
-				left: number;
-			};
-		};
-		payload?: ToothDetail;
-	}>({ active: false });
-
-	/**
-	 * Handlers
-	 */
-	const handleToggle = useCallback(
-		(id: string) => {
-			if (readOnly) {
-				return;
-			}
-
-			setSelected((previous) => {
-				const updated = new Set(previous);
-
-				if (singleSelect) {
-					if (updated.has(id)) {
-						updated.delete(id);
-					} else {
-						updated.clear();
-						updated.add(id);
-					}
-				} else {
-					updated.has(id) ? updated.delete(id) : updated.add(id);
-				}
-
-				onChange?.(Array.from(updated).map(buildToothDetail));
-				return updated;
-			});
-		},
-		[onChange, readOnly, buildToothDetail, singleSelect],
-	);
-
-	const handleKeyDown = useCallback(
-		(event: KeyboardEvent<SVGGElement>, id: string) => {
-			if (readOnly) {
-				return;
-			}
-
-			if (event.key === "Enter" || event.key === " ") {
-				event.preventDefault();
-				handleToggle(id);
-			}
-		},
-		[handleToggle, readOnly],
-	);
-
-	const handleHover = useCallback(
-		(
-			id: string,
-			event: ToothInteractionEvent,
-			placement: Placement = "right",
-		) => {
-			const path = event.currentTarget.querySelector("path");
-			if (!(path && svgRef.current)) {
-				return;
-			}
-
-			const toothBox = path.getBoundingClientRect();
-			const margin = tooltip.margin ?? 10;
-
-			const { x } =
-				placements[placement]?.(toothBox, margin) ??
-				placements.right(toothBox, margin);
-
-			setTooltipData({
-				active: true,
-				position: {
-					x,
-					placement,
-					margin,
-					anchorRect: {
-						top: toothBox.top,
-						right: toothBox.right,
-						bottom: toothBox.bottom,
-						left: toothBox.left,
-					},
-				},
-				payload: buildToothDetail(id),
-			});
-		},
-		[tooltip.margin, buildToothDetail],
-	);
-
-	const handleLeave = useCallback(() => {
-		setTooltipData((prev) => ({ ...prev, active: false }));
-	}, []);
-
-	/**
-	 * Quadrants
-	 */
-	const visibleQuadrants =
-		showHalf === "upper"
-			? quadrants.slice(0, 2)
-			: showHalf === "lower"
-				? quadrants.slice(2)
-				: quadrants;
-
-	/**
-	 * Teeth slice
-	 */
-	const filteredTeeth = useMemo(
-		() => teethpath.slice(0, clampMaxTeeth(maxTeeth)),
-		[maxTeeth, clampMaxTeeth, teethpath],
-	);
-
-	/**
-	 * Condition map
-	 */
-	const conditionMap = useMemo(() => {
-		const map = new Map<string, ToothConditionGroup>();
-
-		if (teethConditions) {
-			for (const condition of teethConditions) {
-				for (const toothId of condition.teeth) {
-					map.set(toothId, condition);
-				}
-			}
+	useEffect(() => {
+		if (isLegacyLayout(layout)) {
+			warnDeprecated(
+				"layout",
+				`layout="${layout}" is deprecated; use layout="${normalizeLayout(layout)}".`,
+			);
 		}
+	}, [layout]);
 
-		return map;
+	useEffect(() => {
+		if (maxTeeth !== undefined) {
+			warnDeprecated(
+				"maxTeeth",
+				`maxTeeth is deprecated; maxTeeth={5} shows permanent premolars, not primary teeth. Use dentition="primary".`,
+			);
+		}
+	}, [maxTeeth]);
+
+	useEffect(() => {
+		if (teethConditions) {
+			warnDeprecated(
+				"teethConditions",
+				"teethConditions is deprecated; use conditions.",
+			);
+		}
 	}, [teethConditions]);
 
 	/**
-	 * Render teeth
+	 * Model and state
 	 */
-	const renderTeeth = useCallback(
-		(prefix: string) =>
-			filteredTeeth.map((tooth) => {
-				const id = `${prefix}${tooth.name}`;
-				const displayName = convertFDIToNotation(id, notation);
-				const condition = conditionMap.get(id);
+	const { viewBox, quadrants, conditionByTooth } = useOdontogram({
+		dentition,
+		layout: resolvedLayout,
+		showHalf,
+		maxTeeth,
+		conditions: conditionGroups,
+	});
 
-				return (
-					<Teeth
-						key={id}
-						readOnly={readOnly}
-						{...tooth}
-						name={id}
-						selected={selected.has(id)}
-						condition={condition}
-						onClick={handleToggle}
-						onKeyDown={handleKeyDown}
-						onHover={
-							showTooltip
-								? (currentId, event) =>
-										handleHover(currentId, event, tooltip.placement)
-								: undefined
-						}
-						onFocus={
-							showTooltip
-								? (currentId, event) =>
-										handleHover(currentId, event, tooltip.placement)
-								: undefined
-						}
-						onLeave={showTooltip ? handleLeave : undefined}
-						onBlur={showTooltip ? handleLeave : undefined}
-					>
-						<title>{displayName}</title>
-					</Teeth>
-				);
-			}),
-		[
-			filteredTeeth,
-			notation,
-			conditionMap,
-			readOnly,
-			selected,
-			handleToggle,
-			handleKeyDown,
-			handleHover,
-			handleLeave,
-			showTooltip,
-			tooltip.placement,
-		],
+	const toToothDetail = useCallback(
+		(id: string) => buildToothDetail(id, idFormat),
+		[idFormat],
+	);
+
+	const controlledValue = useMemo(() => value?.map(toFdiId), [value]);
+	const { selected, isSelected, toggle } = useToothSelection({
+		value: controlledValue,
+		// Only read on mount, like any React default value.
+		defaultValue: (defaultValue ?? defaultSelected).map(toFdiId),
+		singleSelect,
+		disabled: isDisabled,
+		onChange: onChange ? (ids) => onChange(ids.map(toToothDetail)) : undefined,
+	});
+
+	const {
+		svgRef,
+		tooltip: tooltipState,
+		show: showToothTooltip,
+		hide: hideToothTooltip,
+	} = useToothTooltip({
+		placement: tooltip.placement,
+		margin: tooltip.margin,
+		getPayload: toToothDetail,
+	});
+
+	const handleKeyDown = useCallback(
+		(event: KeyboardEvent<SVGGElement>, id: string) => {
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				toggle(id);
+			}
+		},
+		[toggle],
 	);
 
 	/**
 	 * Colors
 	 */
 	const finalColors = {
-		...themeColors,
+		...(theme === "dark" ? darkThemeColors : lightThemeColors),
 		...mapToCssVars(colors),
 	};
 
@@ -326,10 +168,6 @@ export const Odontogram: FC<OdontogramProps> = ({
 	]
 		.filter(Boolean)
 		.join(" ");
-
-	//we have 4 conditions
-	//layout is circle or square
-	// if
 
 	return (
 		<div
@@ -345,23 +183,25 @@ export const Odontogram: FC<OdontogramProps> = ({
 				alignItems: "center",
 				...(styles as CSSProperties),
 			}}
-			role={readOnly ? "group" : "listbox"}
-			aria-multiselectable={readOnly ? undefined : !singleSelect}
+			role={isDisabled ? "group" : "listbox"}
+			aria-multiselectable={isDisabled ? undefined : !singleSelect}
 			aria-label="Odontogram"
-			data-read-only={readOnly ? "true" : "false"}
-			tabIndex={readOnly ? -1 : 0}
+			data-read-only={isDisabled ? "true" : "false"}
+			tabIndex={isDisabled ? -1 : 0}
 		>
 			<input
 				type="hidden"
 				name={name ?? "teeth"}
-				value={JSON.stringify(Array.from(selected))}
+				value={JSON.stringify(
+					selected.map((id) => formatPublicId(id, idFormat)),
+				)}
 			/>
 
 			<svg
 				ref={svgRef}
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
-				viewBox={getViewBox(layout, showHalf)}
+				viewBox={viewBox}
 				className="Odontogram"
 				style={{
 					width: "100%",
@@ -372,23 +212,29 @@ export const Odontogram: FC<OdontogramProps> = ({
 			>
 				<title>Odontogram</title>
 
-				{visibleQuadrants.map(({ name, transform, prefix }) => (
-					<g key={name} transform={transform}>
-						{renderTeeth(`teeth-${prefix}`)}
-					</g>
-				))}
+				<ToothLayer
+					quadrants={quadrants}
+					notation={notation}
+					disabled={isDisabled}
+					isSelected={isSelected}
+					conditionByTooth={conditionByTooth}
+					onSelect={toggle}
+					onKeyDown={handleKeyDown}
+					onShowTooltip={showTooltip ? showToothTooltip : undefined}
+					onHideTooltip={showTooltip ? hideToothTooltip : undefined}
+				/>
 			</svg>
 
 			{showTooltip && (
 				<OdontogramTooltip
-					active={tooltipData.active}
-					position={tooltipData.position}
-					payload={tooltipData.payload}
+					active={tooltipState.active}
+					position={tooltipState.position}
+					payload={tooltipState.payload}
 					content={tooltip.content}
 				/>
 			)}
 
-			{showLabels && <ConditionLabels conditions={teethConditions} />}
+			{showLabels && <ConditionLabels conditions={conditionGroups} />}
 		</div>
 	);
 };
