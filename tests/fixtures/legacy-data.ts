@@ -1,7 +1,7 @@
 /**
  * Permanent tooth paths of react-odontogram 0.5.8 (`src/data.ts`), frozen as
- * a reference: `tests/core/react-parity.test.ts` checks the core keeps them
- * verbatim. The component draws `src/core/data` since R03.
+ * a reference: `tests/core-parity.test.ts` checks the core keeps them
+ * verbatim. The component draws `@kmanueldc/odontogram-core` since R03.
  */
 export const teethPaths = [
 	{

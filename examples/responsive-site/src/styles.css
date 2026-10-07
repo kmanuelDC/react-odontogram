@@ -833,3 +833,28 @@ input[type="text"] {
 		display: none;
 	}
 }
+
+/* Tooth inspector of the selected tooth, in the details panel. */
+.inspector-panel {
+	margin-top: 8px;
+}
+
+.app-dark .odontogram-inspector,
+.app-dark .odontogram-surface-guide {
+	color: #e2e8f0;
+}
+
+.app-dark .odontogram-inspector__type,
+.app-dark .odontogram-inspector__empty,
+.app-dark .odontogram-inspector__hint {
+	color: #94a3b8;
+}
+
+.app-dark .odontogram-inspector__entry,
+.app-dark .odontogram-inspector__badge {
+	background: #273142;
+}
+
+.app-dark .odontogram-inspector__remove {
+	color: #cbd5e1;
+}

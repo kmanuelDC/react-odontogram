@@ -1,8 +1,11 @@
 {
-	"name": "react-odontogram",
-	"description": "dental chart for selecting teeth",
-	"version": "0.5.8",
-	"author": "Pratik Sharma <sharma.pratik2016@gmail.com>",
+	"name": "@kmanueldc/react-odontogram",
+	"description": "Clinical dental chart for React: tooth selection, FDI notation, primary/mixed dentition and clinical findings. Fork of react-odontogram by Pratik Sharma.",
+	"version": "0.1.0",
+	"author": "Manuel Díaz Calua",
+	"contributors": [
+		"Pratik Sharma <sharma.pratik2016@gmail.com> (https://github.com/biomathcode)"
+	],
 	"license": "MIT",
 	"keywords": [
 		"odontogram",
@@ -24,7 +27,11 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/biomathcode/react-odontogram"
+		"url": "git+https://github.com/kmanuelDC/react-odontogram.git"
+	},
+	"homepage": "https://github.com/kmanuelDC/react-odontogram#readme",
+	"bugs": {
+		"url": "https://github.com/kmanuelDC/react-odontogram/issues"
 	},
 	"scripts": {
 		"dev": "concurrently \"pnpm build --watch\" \"pnpm storybook\" \"pnpm test\" ",
@@ -56,7 +63,13 @@
 		"./style.css": "./dist/index.css"
 	},
 	"sideEffects": ["*.css", "**/*.css"],
-	"files": ["dist"],
+	"files": [
+		"dist",
+		"LICENSE",
+		"CHANGELOG.md",
+		"MIGRATION.md",
+		"THIRD_PARTY_NOTICES.md"
+	],
 	"config": {
 		"commitizen": {
 			"path": "./node_modules/@ryansonshine/cz-conventional-changelog"
@@ -109,7 +122,8 @@
 		"tsx": "4.19.3",
 		"typescript": "5.8.2",
 		"vitest": "3.0.9",
-		"@storybook/addon-docs": "10.2.10"
+		"@storybook/addon-docs": "10.2.10",
+		"@kmanueldc/odontogram-core": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": ">=17",

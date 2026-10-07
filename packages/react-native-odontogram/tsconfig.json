@@ -1,12 +1,10 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"types": []
+		"types": ["node"],
+		"paths": {
+			"@kmanueldc/odontogram-core": ["../odontogram-core/src/index.ts"]
+		}
 	},
-	"include": [
-		"src",
-		"../../src/data.ts",
-		"../../src/type.ts",
-		"../../src/utils.ts"
-	]
+	"include": ["src"]
 }

@@ -7,8 +7,8 @@ const meta = {
 
 	args: {
 		showTooltip: false,
-		layout: "circle",
-		readOnly: true,
+		layout: "arch",
+		disabled: true,
 		showLabels: true,
 		styles: {
 			maxWidth: "300px",
@@ -16,11 +16,11 @@ const meta = {
 	},
 
 	argTypes: {
-		teethConditions: { control: "object" },
+		conditions: { control: "object" },
 		showTooltip: { control: "boolean" },
-		readOnly: { control: "boolean" },
+		disabled: { control: "boolean" },
 		showLabels: { control: "boolean" },
-		layout: { control: "select", options: ["circle", "square"] },
+		layout: { control: "select", options: ["arch", "horizontal"] },
 	},
 } satisfies Meta<typeof Odontogram>;
 
@@ -48,16 +48,16 @@ const Wrapper = (args: any) => (
 export const Default: Story = {
 	render: Wrapper,
 	args: {
-		teethConditions: [
+		conditions: [
 			{
 				label: "yellowing",
-				teeth: ["teeth-11", "teeth-12", "teeth-13"],
+				teeth: ["11", "12", "13"],
 				fillColor: "#fde047",
 				outlineColor: "#ca8a04",
 			},
 			{
 				label: "caries",
-				teeth: ["teeth-16", "teeth-26"],
+				teeth: ["16", "26"],
 				fillColor: "#ef4444",
 				outlineColor: "#ef4444",
 			},
@@ -68,20 +68,20 @@ export const Default: Story = {
 export const DefaultSquare: Story = {
 	render: Wrapper,
 	args: {
-		layout: "square",
+		layout: "horizontal",
 		styles: {
 			maxWidth: "800px",
 		},
-		teethConditions: [
+		conditions: [
 			{
 				label: "yellowing",
-				teeth: ["teeth-11", "teeth-12", "teeth-13"],
+				teeth: ["11", "12", "13"],
 				fillColor: "#fde047",
 				outlineColor: "#ca8a04",
 			},
 			{
 				label: "caries",
-				teeth: ["teeth-16", "teeth-26"],
+				teeth: ["16", "26"],
 				fillColor: "#ef4444",
 				outlineColor: "#ef4444",
 			},
@@ -92,7 +92,7 @@ export const DefaultSquare: Story = {
 export const NoConditions: Story = {
 	render: Wrapper,
 	args: {
-		teethConditions: [],
+		conditions: [],
 		showLabels: false,
 	},
 };
@@ -100,10 +100,10 @@ export const NoConditions: Story = {
 export const FullMouthCaries: Story = {
 	render: Wrapper,
 	args: {
-		teethConditions: [
+		conditions: [
 			{
 				label: "caries",
-				teeth: Array.from({ length: 32 }, (_, i) => `teeth-${i + 1}`),
+				teeth: Array.from({ length: 32 }, (_, i) => String(i + 1)),
 				fillColor: "#ef4444",
 				outlineColor: "#b91c1c",
 			},
@@ -114,22 +114,22 @@ export const FullMouthCaries: Story = {
 export const MixedConditions: Story = {
 	render: Wrapper,
 	args: {
-		teethConditions: [
+		conditions: [
 			{
 				label: "caries",
-				teeth: ["teeth-16", "teeth-17", "teeth-36", "teeth-37"],
+				teeth: ["16", "17", "36", "37"],
 				fillColor: "#ef4444",
 				outlineColor: "#b91c1c",
 			},
 			{
 				label: "filling",
-				teeth: ["teeth-14", "teeth-24"],
+				teeth: ["14", "24"],
 				fillColor: "#60a5fa",
 				outlineColor: "#2563eb",
 			},
 			{
 				label: "missing",
-				teeth: ["teeth-18", "teeth-28"],
+				teeth: ["18", "28"],
 				fillColor: "#e5e7eb",
 				outlineColor: "#6b7280",
 			},
@@ -140,14 +140,14 @@ export const MixedConditions: Story = {
 export const SquareLayout: Story = {
 	render: Wrapper,
 	args: {
-		layout: "square",
+		layout: "horizontal",
 		styles: {
 			maxWidth: "800px",
 		},
-		teethConditions: [
+		conditions: [
 			{
 				label: "yellowing",
-				teeth: ["teeth-31", "teeth-32", "teeth-33"],
+				teeth: ["31", "32", "33"],
 				fillColor: "#fde047",
 				outlineColor: "#ca8a04",
 			},
@@ -158,12 +158,12 @@ export const SquareLayout: Story = {
 export const ReadWriteMode: Story = {
 	render: Wrapper,
 	args: {
-		readOnly: false,
+		disabled: false,
 		showTooltip: true,
-		teethConditions: [
+		conditions: [
 			{
 				label: "selected",
-				teeth: ["teeth-21"],
+				teeth: ["21"],
 				fillColor: "#34d399",
 				outlineColor: "#059669",
 			},

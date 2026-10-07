@@ -5,13 +5,16 @@
  * format (`"teeth-11"`) only exists at the public boundary: `defaultSelected`,
  * `onChange`, the hidden form input and condition groups.
  */
-import type { OdontogramLayout } from "./core/utils/layout";
 import {
+	type OdontogramFinding,
+	type OdontogramLayout,
+	type OdontogramSurfaces,
+	type OdontogramToothStates,
 	type PalmerQuadrant,
 	formatToothNumber,
 	getPalmerQuadrant,
 	getToothType,
-} from "./core/utils/notation";
+} from "@kmanueldc/odontogram-core";
 import type {
 	IdFormat,
 	LegacyLayout,
@@ -74,6 +77,53 @@ export function normalizeConditions(
 	}));
 }
 
+/** Tooth states keyed by FDI ID; the keys may be in either format. */
+export function normalizeToothStates(
+	states: OdontogramToothStates | undefined,
+): OdontogramToothStates | undefined {
+	if (!states) {
+		return undefined;
+	}
+	return Object.fromEntries(
+		Object.entries(states).map(([id, state]) => [toFdiId(id), state]),
+	);
+}
+
+/** Findings with FDI tooth IDs; the IDs may be in either format. */
+export function normalizeFindings(
+	findings: readonly OdontogramFinding[] | undefined,
+): OdontogramFinding[] {
+	return (findings ?? []).map((finding) => ({
+		...finding,
+		teeth: finding.teeth.map(toFdiId),
+	}));
+}
+
+/** Surfaces keyed by FDI ID; the keys may be in either format. */
+export function normalizeSurfaces(
+	surfaces: OdontogramSurfaces | undefined,
+): OdontogramSurfaces | undefined {
+	if (!surfaces) {
+		return undefined;
+	}
+	return Object.fromEntries(
+		Object.entries(surfaces).map(([id, list]) => [toFdiId(id), list]),
+	);
+}
+
+/** Surfaces keyed by public ID in the chosen format. */
+export function formatPublicSurfaces(
+	surfaces: OdontogramSurfaces,
+	idFormat: IdFormat,
+): OdontogramSurfaces {
+	return Object.fromEntries(
+		Object.entries(surfaces).map(([id, list]) => [
+			formatPublicId(id, idFormat),
+			list,
+		]),
+	);
+}
+
 /** `disabled` wins; `readOnly` stays supported as its React-style alias. */
 export function resolveDisabled(
 	disabled: boolean | undefined,
@@ -133,15 +183,18 @@ function isProduction(): boolean {
 	);
 }
 
-/** Logs a deprecation once per key, and never in production builds. */
-export function warnDeprecated(key: string, message: string): void {
+/** Logs a developer warning once per key, and never in production builds. */
+export function warnOnce(key: string, message: string): void {
 	if (isProduction() || warned.has(key)) {
 		return;
 	}
 	warned.add(key);
-	// biome-ignore lint/suspicious/noConsole: deprecation notices are meant for the developer console.
+	// biome-ignore lint/suspicious/noConsole: warnings are meant for the developer console.
 	console.warn(`[react-odontogram] ${message}`);
 }
+
+/** Logs a deprecation once per key, and never in production builds. */
+export const warnDeprecated = warnOnce;
 
 /** Forgets the warnings already logged; for tests. */
 export function resetDeprecationWarnings(): void {

@@ -5,8 +5,9 @@ de traer las novedades de `vue-odontogram` (ver [ToDo.md](../../ToDo.md), R00).
 Sirven para comprobar que los refactors, en especial R03, no cambian el
 render permanente.
 
-Hay una captura por historia de Storybook: 25 de R00 y 5 de R04 (las 2
-historias "Baby Teeth" de R00 se eliminaron en R04), a 1000×900, con Chrome headless.
+Hay una captura por historia de Storybook: 25 de R00, 5 de R04, 5 de R05, 7
+de R06, 3 de R07, 8 de R08, 6 de R09, 5 de R10, 3 de R11–R12, 3 de R13, 4 de R14 y 5 de R16 (las 2 historias "Baby Teeth" de R00 se eliminaron en R04), a
+1000×900, con Chrome headless.
 El render es determinista: dos ejecuciones seguidas producen archivos
 idénticos byte a byte.
 
@@ -39,6 +40,8 @@ de empezar una fase.
 | `read-only-odontogram--*` | 7 | `readOnly` y `teethConditions` con leyenda, en `circle` y `square` |
 | `components-form--*` | 2 | Input oculto de formulario y salida `ToothDetail` |
 | `components-primary-dentition--*` | 5 | Añadidas en R04: `dentition="primary"` en arco y horizontal, condiciones, media arcada superior e inferior (en arco) |
+| `components-features--*` | 7 | Añadidas en R06: números FDI, Palmer (horizontal), Universal (temporal), mixta y media arcada; `renderTooltip`; `labels` en español con leyenda |
+| `components-mixed-dentition--*` | 5 | Añadidas en R05: `dentition="mixed"` en horizontal y arco, `teeth` (piezas presentes), condiciones con leyenda, media arcada superior (horizontal) |
 
 ## Observaciones registradas en la línea base
 

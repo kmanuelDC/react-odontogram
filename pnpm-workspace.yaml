@@ -1,0 +1,4 @@
+packages:
+  # react-native-odontogram stays outside: installing it would pull
+  # react-native as an auto-installed peer. Its tests run from the root.
+  - "packages/odontogram-core"

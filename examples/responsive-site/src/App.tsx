@@ -1,32 +1,45 @@
+import {
+	addFinding,
+	getFindingScope,
+	ntsPeruFindingCatalog,
+	removeSurfaceFinding,
+} from "@kmanueldc/odontogram-core";
 import { useMemo, useRef, useState } from "react";
 import { Odontogram } from "../../../src/Odontogram";
+import { ToothInspector } from "../../../src/ToothInspector";
+import { buildToothDetail } from "../../../src/compat";
 import type {
 	Notation,
+	OdontogramDentition,
+	OdontogramFinding,
 	OdontogramProps,
+	OdontogramSurfaces,
+	OdontogramToothStates,
+	SurfaceShapeKind,
 	ToothConditionGroup,
 	ToothDetail,
 } from "../../../src/type";
 
-type Layout = NonNullable<OdontogramProps["layout"]>;
+type Layout = "arch" | "horizontal";
 type ShowHalf = NonNullable<OdontogramProps["showHalf"]>;
 
 const conditionSets: Record<string, ToothConditionGroup[]> = {
 	checkup: [
 		{
 			label: "caries",
-			teeth: ["teeth-16", "teeth-26", "teeth-36"],
+			teeth: ["16", "26", "36", "54", "64"],
 			fillColor: "#ef4444",
 			outlineColor: "#991b1b",
 		},
 		{
 			label: "filling",
-			teeth: ["teeth-14", "teeth-24", "teeth-44"],
+			teeth: ["14", "24", "44", "74"],
 			fillColor: "#38bdf8",
 			outlineColor: "#0369a1",
 		},
 		{
 			label: "watch",
-			teeth: ["teeth-11", "teeth-12", "teeth-31"],
+			teeth: ["11", "12", "31", "51", "81"],
 			fillColor: "#fde047",
 			outlineColor: "#a16207",
 		},
@@ -34,13 +47,13 @@ const conditionSets: Record<string, ToothConditionGroup[]> = {
 	periodontal: [
 		{
 			label: "mobility",
-			teeth: ["teeth-17", "teeth-27", "teeth-37", "teeth-47"],
+			teeth: ["17", "27", "37", "47"],
 			fillColor: "#f9a8d4",
 			outlineColor: "#be185d",
 		},
 		{
 			label: "monitor",
-			teeth: ["teeth-13", "teeth-23", "teeth-33", "teeth-43"],
+			teeth: ["13", "23", "33", "43", "53", "63"],
 			fillColor: "#a78bfa",
 			outlineColor: "#6d28d9",
 		},
@@ -48,22 +61,42 @@ const conditionSets: Record<string, ToothConditionGroup[]> = {
 	surgery: [
 		{
 			label: "planned",
-			teeth: ["teeth-18", "teeth-28", "teeth-38", "teeth-48"],
+			teeth: ["18", "28", "38", "48"],
 			fillColor: "#fb923c",
 			outlineColor: "#c2410c",
 		},
 		{
 			label: "reviewed",
-			teeth: ["teeth-17", "teeth-27"],
+			teeth: ["17", "27"],
 			fillColor: "#86efac",
 			outlineColor: "#15803d",
 		},
 	],
+	none: [],
+};
+
+/** Clinical findings of the NTS Peru catalog, on permanent and primary teeth. */
+const sampleFindings: OdontogramFinding[] = [
+	{ code: "caries", teeth: ["16"], surfaces: ["occlusal", "mesial"] },
+	{ code: "restoration", teeth: ["26"], surfaces: ["occlusal"] },
+	{ code: "crown", teeth: ["21"] },
+	{ code: "fixed-prosthesis", teeth: ["44", "46"] },
+	{ code: "extraction", teeth: ["38"], status: "planned" },
+	{ code: "caries", teeth: ["54", "84"], surfaces: ["occlusal"] },
+	{ code: "crown", teeth: ["61"], status: "done" },
+];
+
+const sampleStates: OdontogramToothStates = {
+	18: "missing",
+	36: "implant",
+	75: "extracted",
 };
 
 const notations: Notation[] = ["FDI", "Universal", "Palmer"];
-const layoutModes: Layout[] = ["circle", "square"];
+const layoutModes: Layout[] = ["arch", "horizontal"];
+const dentitions: OdontogramDentition[] = ["permanent", "primary", "mixed"];
 const halves: ShowHalf[] = ["full", "upper", "lower"];
+const surfaceShapes: SurfaceShapeKind[] = ["square", "circle"];
 
 const previewWidths = [
 	{ label: "Phone", width: 220 },
@@ -94,6 +127,19 @@ const faqs = [
 	},
 ];
 
+/** Whether a tooth belongs to a dentition: permanent 11–48, primary 51–85. */
+const inDentition = (toothId: string, dentition: OdontogramDentition) =>
+	dentition === "mixed" || (dentition === "primary") === Number(toothId) > 50;
+
+/** Surface findings need the surface diagrams; the others draw on the tooth. */
+const isSurfaceFinding = ({ code }: OdontogramFinding) => {
+	const definition =
+		ntsPeruFindingCatalog[code as keyof typeof ntsPeruFindingCatalog];
+	return (
+		Boolean(definition) && getFindingScope(definition.symbol) === "surface"
+	);
+};
+
 const getSlug = (value: string) =>
 	value
 		.trim()
@@ -110,66 +156,142 @@ const downloadBlob = (blob: Blob, filename: string) => {
 	URL.revokeObjectURL(url);
 };
 
-const serializeSvg = (svg: SVGSVGElement) => {
-	const clone = svg.cloneNode(true) as SVGSVGElement;
-	clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-	clone.setAttribute("width", "1200");
-	clone.setAttribute("height", "1200");
+/** Rules of the library: its classes, and the `:root` theme colors. */
+const chartRulePattern = /odontogram|:root/i;
 
-	const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-	style.textContent = `
-		.Odontogram svg { color: #64748b; fill: none; }
-		.Odontogram g.selected { color: #0f766e; }
-		.Odontogram g.selected path:nth-of-type(2) { fill: #99f6e4; opacity: 1; }
-	`;
-	clone.insertBefore(style, clone.firstChild);
+/** The library's CSS rules loaded in the page, to embed them in exports. */
+const getChartCss = () =>
+	[...document.styleSheets]
+		.flatMap((sheet) => {
+			try {
+				return [...sheet.cssRules];
+			} catch {
+				// Cross-origin sheets cannot be read; the library is same-origin.
+				return [];
+			}
+		})
+		.map((rule) => rule.cssText)
+		.filter((text) => chartRulePattern.test(text))
+		.join("\n");
 
-	return new XMLSerializer().serializeToString(clone);
+/**
+ * A standalone SVG of the chart: the chart's <svg> nested in an outer
+ * `.Odontogram` <svg> with the library CSS and the chart's theme variables,
+ * so surfaces, findings and marks keep their look.
+ */
+const serializeSvg = (chart: HTMLElement) => {
+	const svg = chart.querySelector("svg");
+	if (!svg) {
+		return undefined;
+	}
+	const size = "1200";
+	const namespace = "http://www.w3.org/2000/svg";
+
+	const inner = svg.cloneNode(true) as SVGSVGElement;
+	inner.removeAttribute("style");
+	inner.setAttribute("width", size);
+	inner.setAttribute("height", size);
+
+	const outer = document.createElementNS(namespace, "svg");
+	outer.setAttribute("xmlns", namespace);
+	outer.setAttribute("width", size);
+	outer.setAttribute("height", size);
+	outer.setAttribute("viewBox", `0 0 ${size} ${size}`);
+	outer.setAttribute("class", chart.className);
+	outer.setAttribute("style", chart.getAttribute("style") ?? "");
+
+	const style = document.createElementNS(namespace, "style");
+	style.textContent = getChartCss();
+	outer.append(style, inner);
+
+	return new XMLSerializer().serializeToString(outer);
 };
 
 export default function App() {
 	const chartRef = useRef<HTMLDivElement>(null);
-	const [layout, setLayout] = useState<Layout>("circle");
+	const [layout, setLayout] = useState<Layout>("arch");
+	const [dentition, setDentition] = useState<OdontogramDentition>("permanent");
 	const [notation, setNotation] = useState<Notation>("FDI");
 	const [theme, setTheme] = useState<"light" | "dark">("light");
 	const [showHalf, setShowHalf] = useState<ShowHalf>("full");
-	const [maxTeeth, setMaxTeeth] = useState(8);
 	const [singleSelect, setSingleSelect] = useState(false);
 	const [readOnly, setReadOnly] = useState(false);
 	const [showLabels, setShowLabels] = useState(true);
+	const [showNumbers, setShowNumbers] = useState(false);
+	const [showSurfaces, setShowSurfaces] = useState(true);
+	const [surfaceShape, setSurfaceShape] = useState<SurfaceShapeKind>("square");
+	const [showFindings, setShowFindings] = useState(true);
+	const [showStates, setShowStates] = useState(true);
 	const [conditionKey, setConditionKey] = useState("checkup");
 	const [chartTitle, setChartTitle] = useState("Free dental chart");
 	const [chartNote, setChartNote] = useState("Initial exam");
-	const [selectedTeeth, setSelectedTeeth] = useState<ToothDetail[]>([]);
+	// Controlled, so the list matches the chart from the first render.
+	const [selectedTeeth, setSelectedTeeth] = useState<ToothDetail[]>(() =>
+		["11", "21"].map((id) => buildToothDetail(id, "fdi")),
+	);
+	const [findings, setFindings] = useState(sampleFindings);
+	const [surfaces, setSurfaces] = useState<OdontogramSurfaces>({});
 
-	const activeConditions = conditionSets[conditionKey];
+	// Only what the dentition draws, so no tooth of another set is listed.
+	const activeConditions = useMemo(
+		() =>
+			conditionSets[conditionKey].map((group) => ({
+				...group,
+				teeth: group.teeth.filter((id) => inDentition(id, dentition)),
+			})),
+		[conditionKey, dentition],
+	);
+	const chartFindings = useMemo(
+		() =>
+			showFindings
+				? findings.filter(
+						(finding) =>
+							finding.teeth.every((id) => inDentition(id, dentition)) &&
+							(showSurfaces || !isSurfaceFinding(finding)),
+					)
+				: [],
+		[findings, showFindings, showSurfaces, dentition],
+	);
+	const toothStates = useMemo(
+		() =>
+			showStates
+				? Object.fromEntries(
+						Object.entries(sampleStates).filter(([id]) =>
+							inDentition(id, dentition),
+						),
+					)
+				: undefined,
+		[showStates, dentition],
+	);
+	const inspectedTooth = selectedTeeth.at(-1)?.id;
 
 	const chartStyles = useMemo(
 		() => ({
-			maxWidth: layout === "square" ? "960px" : "520px",
+			maxWidth: layout === "horizontal" ? "960px" : "520px",
 		}),
 		[layout],
 	);
 
 	const exportSvg = () => {
-		const svg = chartRef.current?.querySelector("svg");
-		if (!svg) {
+		const chart = chartRef.current?.querySelector<HTMLElement>(".Odontogram");
+		const svgText = chart && serializeSvg(chart);
+		if (!svgText) {
 			return;
 		}
 
 		downloadBlob(
-			new Blob([serializeSvg(svg)], { type: "image/svg+xml;charset=utf-8" }),
+			new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }),
 			`${getSlug(chartTitle)}.svg`,
 		);
 	};
 
 	const exportPng = () => {
-		const svg = chartRef.current?.querySelector("svg");
-		if (!svg) {
+		const chart = chartRef.current?.querySelector<HTMLElement>(".Odontogram");
+		const svgText = chart && serializeSvg(chart);
+		if (!svgText) {
 			return;
 		}
 
-		const svgText = serializeSvg(svg);
 		const image = new Image();
 		const svgUrl = URL.createObjectURL(
 			new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }),
@@ -206,15 +328,21 @@ export default function App() {
 			generatedAt: new Date().toISOString(),
 			settings: {
 				conditionSet: conditionKey,
+				dentition,
 				layout,
-				maxTeeth,
 				notation,
 				showHalf,
 				showLabels,
+				showNumbers,
+				showSurfaces,
+				surfaceShape,
 				singleSelect,
 				theme,
 			},
 			conditions: activeConditions,
+			toothStates: toothStates ?? {},
+			findings: chartFindings,
+			surfaces,
 			selectedTeeth,
 		};
 
@@ -225,6 +353,17 @@ export default function App() {
 			`${getSlug(chartTitle)}.json`,
 		);
 	};
+
+	const switches: [string, boolean, (value: boolean) => void][] = [
+		["Dark theme", theme === "dark", (on) => setTheme(on ? "dark" : "light")],
+		["Single select", singleSelect, setSingleSelect],
+		["Read only", readOnly, setReadOnly],
+		["Condition labels", showLabels, setShowLabels],
+		["Tooth numbers", showNumbers, setShowNumbers],
+		["Surface diagrams", showSurfaces, setShowSurfaces],
+		["Findings", showFindings, setShowFindings],
+		["Tooth states", showStates, setShowStates],
+	];
 
 	return (
 		<main className={`app app-${theme}`}>
@@ -283,6 +422,24 @@ export default function App() {
 						</div>
 
 						<div className="control-group">
+							<label htmlFor="dentition">Dentition</label>
+							<select
+								id="dentition"
+								onChange={(event) => {
+									setDentition(event.target.value as OdontogramDentition);
+									setSelectedTeeth([]);
+								}}
+								value={dentition}
+							>
+								{dentitions.map((item) => (
+									<option key={item} value={item}>
+										{item}
+									</option>
+								))}
+							</select>
+						</div>
+
+						<div className="control-group">
 							<label htmlFor="notation">Notation</label>
 							<select
 								id="notation"
@@ -332,55 +489,32 @@ export default function App() {
 						</div>
 
 						<div className="control-group">
-							<label htmlFor="max-teeth">Teeth per quadrant</label>
-							<div className="range-row">
-								<input
-									id="max-teeth"
-									max={8}
-									min={1}
-									onChange={(event) => setMaxTeeth(Number(event.target.value))}
-									type="range"
-									value={maxTeeth}
-								/>
-								<output htmlFor="max-teeth">{maxTeeth}</output>
+							<label htmlFor="surface-shape">Surface diagram</label>
+							<div className="segmented" id="surface-shape">
+								{surfaceShapes.map((shape) => (
+									<button
+										aria-pressed={surfaceShape === shape}
+										key={shape}
+										onClick={() => setSurfaceShape(shape)}
+										type="button"
+									>
+										{shape}
+									</button>
+								))}
 							</div>
 						</div>
 
 						<div className="switch-list">
-							<label>
-								<input
-									checked={theme === "dark"}
-									onChange={(event) =>
-										setTheme(event.target.checked ? "dark" : "light")
-									}
-									type="checkbox"
-								/>
-								Dark theme
-							</label>
-							<label>
-								<input
-									checked={singleSelect}
-									onChange={(event) => setSingleSelect(event.target.checked)}
-									type="checkbox"
-								/>
-								Single select
-							</label>
-							<label>
-								<input
-									checked={readOnly}
-									onChange={(event) => setReadOnly(event.target.checked)}
-									type="checkbox"
-								/>
-								Read only
-							</label>
-							<label>
-								<input
-									checked={showLabels}
-									onChange={(event) => setShowLabels(event.target.checked)}
-									type="checkbox"
-								/>
-								Condition labels
-							</label>
+							{switches.map(([label, checked, onChange]) => (
+								<label key={label}>
+									<input
+										checked={checked}
+										onChange={(event) => onChange(event.target.checked)}
+										type="checkbox"
+									/>
+									{label}
+								</label>
+							))}
 						</div>
 					</aside>
 
@@ -407,19 +541,27 @@ export default function App() {
 												lightBlue: "#99f6e4",
 											}
 								}
-								defaultSelected={["teeth-11", "teeth-21"]}
+								conditions={activeConditions}
+								value={selectedTeeth.map(({ id }) => id)}
+								dentition={dentition}
+								disabled={readOnly}
+								findings={chartFindings}
+								idFormat="fdi"
 								layout={layout}
-								maxTeeth={maxTeeth}
 								notation={notation}
 								onChange={setSelectedTeeth}
-								readOnly={readOnly}
+								onSurfacesChange={setSurfaces}
 								showHalf={showHalf}
 								showLabels={showLabels}
+								showNumbers={showNumbers}
+								showSurfaces={showSurfaces}
 								showTooltip={true}
 								singleSelect={singleSelect}
 								styles={chartStyles}
-								teethConditions={activeConditions}
+								surfaceShape={surfaceShape}
+								surfaces={surfaces}
 								theme={theme}
+								toothStates={toothStates}
 								tooltip={{ placement: "right" }}
 							/>
 						</div>
@@ -455,6 +597,31 @@ export default function App() {
 								))
 							)}
 						</div>
+
+						{inspectedTooth && (
+							<>
+								<h2>Tooth findings</h2>
+								<ToothInspector
+									className="inspector-panel"
+									disabled={readOnly || !showFindings}
+									findings={findings}
+									notation={notation}
+									onAddFinding={(input) =>
+										setFindings(addFinding(findings, input))
+									}
+									onRemoveFinding={(removal) =>
+										setFindings(removeSurfaceFinding(findings, removal))
+									}
+									onSelectedSurfacesChange={(next) =>
+										setSurfaces({ ...surfaces, [inspectedTooth]: next })
+									}
+									selectedSurfaces={surfaces[inspectedTooth] ?? []}
+									shape={surfaceShape}
+									toothId={inspectedTooth}
+									toothStates={toothStates}
+								/>
+							</>
+						)}
 					</aside>
 				</div>
 			</section>
@@ -492,14 +659,14 @@ export default function App() {
 							</div>
 							<div style={{ maxWidth: preview.width }}>
 								<Odontogram
-									defaultSelected={["teeth-14", "teeth-24"]}
-									layout={preview.width < 300 ? "circle" : layout}
-									maxTeeth={preview.width < 300 ? 5 : maxTeeth}
-									readOnly={true}
+									conditions={activeConditions}
+									defaultValue={["14", "24"]}
+									dentition={dentition}
+									disabled={true}
+									layout={preview.width < 300 ? "arch" : layout}
 									showLabels={preview.width > 300}
 									showTooltip={false}
 									styles={{ maxWidth: "100%" }}
-									teethConditions={activeConditions}
 									theme={theme}
 								/>
 							</div>
@@ -515,28 +682,83 @@ export default function App() {
 				<div className="feature-panel">
 					<h2>Upper arch dental chart</h2>
 					<Odontogram
-						defaultSelected={["teeth-11", "teeth-21"]}
-						maxTeeth={8}
-						readOnly={true}
+						conditions={activeConditions}
+						defaultValue={["11", "21"]}
+						disabled={true}
 						showHalf="upper"
 						showLabels={false}
 						showTooltip={false}
 						styles={{ maxWidth: "420px" }}
-						teethConditions={activeConditions}
 						theme={theme}
 					/>
 				</div>
 				<div className="feature-panel">
 					<h2>Printable square odontogram</h2>
 					<Odontogram
-						layout="square"
-						maxTeeth={8}
-						readOnly={true}
+						conditions={activeConditions}
+						disabled={true}
+						layout="horizontal"
 						showLabels={true}
 						showTooltip={false}
 						styles={{ maxWidth: "100%" }}
-						teethConditions={activeConditions}
 						theme={theme}
+					/>
+				</div>
+				<div className="feature-panel">
+					<h2>Mixed dentition chart</h2>
+					<Odontogram
+						dentition="mixed"
+						disabled={true}
+						findings={sampleFindings.filter(
+							(finding) => !isSurfaceFinding(finding),
+						)}
+						layout="horizontal"
+						showNumbers={true}
+						showTooltip={false}
+						styles={{ maxWidth: "100%" }}
+						teeth={[
+							"16",
+							"12",
+							"11",
+							"21",
+							"22",
+							"26",
+							"55",
+							"54",
+							"53",
+							"63",
+							"64",
+							"65",
+							"46",
+							"42",
+							"41",
+							"31",
+							"32",
+							"36",
+							"85",
+							"84",
+							"83",
+							"73",
+							"74",
+							"75",
+						]}
+						theme={theme}
+					/>
+				</div>
+				<div className="feature-panel">
+					<h2>Surface findings chart</h2>
+					<Odontogram
+						disabled={true}
+						findings={sampleFindings.filter(({ teeth }) =>
+							teeth.every((id) => inDentition(id, "permanent")),
+						)}
+						layout="horizontal"
+						showLabels={true}
+						showSurfaces={true}
+						showTooltip={false}
+						styles={{ maxWidth: "100%" }}
+						theme={theme}
+						toothStates={{ 18: "missing", 36: "implant" }}
 					/>
 				</div>
 			</section>

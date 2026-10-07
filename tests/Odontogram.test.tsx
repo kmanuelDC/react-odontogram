@@ -264,3 +264,69 @@ describe("notation helpers", () => {
 		});
 	});
 });
+
+// Ported from vue-odontogram: tests/Odontogram.test.ts. `v-model`, `change`
+// and `tooth-click` map to `value` + `onChange` (idFormat="fdi"). The
+// selected stroke comes from the stylesheet, not an inline style.
+describe("Odontogram (vue-odontogram)", () => {
+	const changedIds = (onChange: ReturnType<typeof vi.fn>, call: number) =>
+		(onChange.mock.calls[call][0] as { id: string }[]).map(({ id }) => id);
+
+	it("renders the 32 permanent teeth with FDI identifiers", () => {
+		render(<Odontogram />);
+		const names = screen
+			.getAllByRole("option")
+			.map((tooth) => tooth.getAttribute("aria-label"));
+
+		expect(names).toHaveLength(32);
+		expect(names).toContain("Tooth 11");
+		expect(names).toContain("Tooth 48");
+	});
+
+	it("reports the selection in multiple mode, controlled", () => {
+		const onChange = vi.fn();
+		const { rerender } = render(
+			<Odontogram idFormat="fdi" value={[]} onChange={onChange} />,
+		);
+		const [first, second] = screen.getAllByRole("option");
+
+		fireEvent.click(first);
+		expect(changedIds(onChange, 0)).toEqual(["11"]);
+
+		rerender(<Odontogram idFormat="fdi" value={["11"]} onChange={onChange} />);
+		fireEvent.click(second);
+		expect(changedIds(onChange, 1)).toEqual(["11", "12"]);
+	});
+
+	it("keeps only the most recently selected tooth in single-select mode", () => {
+		const onChange = vi.fn();
+		render(
+			<Odontogram
+				idFormat="fdi"
+				singleSelect={true}
+				value={["11"]}
+				onChange={onChange}
+			/>,
+		);
+
+		fireEvent.click(screen.getAllByRole("option")[1]);
+
+		expect(screen.getByRole("listbox")).toHaveAttribute(
+			"aria-multiselectable",
+			"false",
+		);
+		expect(changedIds(onChange, 0)).toEqual(["12"]);
+	});
+
+	it("marks a selected tooth for the selected stroke color", () => {
+		render(<Odontogram idFormat="fdi" value={["11"]} />);
+
+		// `.Odontogram g.selected` takes --odontogram-selected-stroke-color.
+		expect(screen.getByRole("option", { name: "Tooth 11" })).toHaveClass(
+			"selected",
+		);
+		expect(screen.getByRole("option", { name: "Tooth 12" })).not.toHaveClass(
+			"selected",
+		);
+	});
+});

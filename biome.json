@@ -87,7 +87,7 @@
 			}
 		},
 		{
-			"include": ["src/core/**", "tests/core/**"],
+			"include": ["packages/odontogram-core/**"],
 			"linter": {
 				"rules": {
 					"complexity": {

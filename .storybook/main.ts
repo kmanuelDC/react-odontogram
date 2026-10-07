@@ -1,4 +1,11 @@
+import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-webpack5";
+
+// The core is consumed from source, as in tsconfig.json `paths`.
+const coreEntry = fileURLToPath(
+	new URL("../packages/odontogram-core/src/index.ts", import.meta.url),
+);
+
 const config: StorybookConfig = {
 	stories: ["../src/**/*.stories.@(js|jsx|ts|tsx|mdx)"],
 
@@ -17,6 +24,15 @@ const config: StorybookConfig = {
 				useSWC: true,
 			},
 		},
+	},
+
+	webpackFinal: (webpackConfig) => {
+		webpackConfig.resolve ??= {};
+		webpackConfig.resolve.alias = {
+			...webpackConfig.resolve.alias,
+			"@kmanueldc/odontogram-core": coreEntry,
+		};
+		return webpackConfig;
 	},
 
 	swc: () => ({

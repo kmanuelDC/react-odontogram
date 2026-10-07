@@ -1,0 +1,47 @@
+{
+	"name": "@kmanueldc/odontogram-core",
+	"description": "Framework-free odontogram core: tooth geometry, FDI/Universal/Palmer notation, dentitions, layouts, surfaces and clinical findings",
+	"version": "0.1.0",
+	"author": "Manuel Díaz Calua",
+	"license": "MIT",
+	"keywords": [
+		"odontogram",
+		"dental-chart",
+		"dental",
+		"tooth",
+		"teeth",
+		"fdi",
+		"dental-notation"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kmanuelDC/react-odontogram.git",
+		"directory": "packages/odontogram-core"
+	},
+	"scripts": {
+		"build": "tsup",
+		"test": "vitest run --config ../../vitest.config.mts tests",
+		"prepublishOnly": "npm run build"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"require": "./dist/index.js",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"sideEffects": false,
+	"files": ["dist", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+	"devDependencies": {
+		"tsup": "8.4.0",
+		"typescript": "5.8.2",
+		"vitest": "3.0.9"
+	}
+}

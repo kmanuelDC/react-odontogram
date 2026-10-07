@@ -8,7 +8,10 @@ const common: Options = {
 	sourcemap: "inline",
 	minify: true,
 	clean: true,
-	dts: true,
+	// The core is bundled (code and types): react-odontogram has no runtime
+	// dependency on @kmanueldc/odontogram-core.
+	dts: { resolve: true },
+	noExternal: ["@kmanueldc/odontogram-core"],
 	splitting: false,
 	format: ["cjs", "esm"],
 	external: ["react"],

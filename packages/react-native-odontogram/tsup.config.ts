@@ -6,10 +6,12 @@ const common: Options = {
 	sourcemap: "inline",
 	minify: true,
 	clean: true,
-	dts: true,
+	dts: { resolve: true },
 	splitting: false,
 	format: ["cjs", "esm"],
 	external: ["react", "react-native", "react-native-svg"],
+	// The core and the shared React code of ../../src are bundled.
+	noExternal: ["@kmanueldc/odontogram-core"],
 	injectStyle: false,
 };
 

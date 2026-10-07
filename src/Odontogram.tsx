@@ -1,44 +1,266 @@
 import "./styles.css";
 import {
+	type ToothAnchor,
+	type ToothNavigationKey,
+	absentToothStates,
+	findNavigationTarget,
+	formatToothNumber,
+	getDentitionToothIds,
+	getSurfaceName,
+	ntsPeruFindingCatalog,
+	resolveOdontogramLabels,
+	resolveToothState,
+	toothNavigationKeys,
+} from "@kmanueldc/odontogram-core";
+import {
 	type CSSProperties,
 	type FC,
 	type KeyboardEvent,
 	useCallback,
 	useEffect,
 	useMemo,
+	useState,
 } from "react";
+import { FindingLayer } from "./FindingLayer";
 import ConditionLabels from "./Labels";
-import { OdontogramTooltip } from "./Tooltip";
+import { NumberLayer } from "./NumberLayer";
+import { OverlayLayer } from "./OverlayLayer";
+import { StateMarkLayer } from "./StateMarkLayer";
+import { SurfaceDiagrams, SurfaceLetters } from "./SurfaceDiagrams";
+import {
+	type ChartSurfaceMenuOptions,
+	useChartSurfaceMenu,
+} from "./SurfaceMenu";
+import { OdontogramTooltip, type TooltipSurfaceDetails } from "./Tooltip";
 import { ToothLayer } from "./ToothLayer";
 import {
 	buildToothDetail,
 	formatPublicId,
+	formatPublicSurfaces,
 	isLegacyLayout,
 	normalizeConditions,
+	normalizeFindings,
 	normalizeLayout,
+	normalizeSurfaces,
+	normalizeToothStates,
 	resolveDisabled,
 	toFdiId,
 	warnDeprecated,
+	warnOnce,
 } from "./compat";
+import {
+	type TooltipFindings,
+	useChartFindings,
+} from "./hooks/useChartFindings";
 import { useOdontogram } from "./hooks/useOdontogram";
+import { useSurfaceSelection } from "./hooks/useSurfaceSelection";
 import { useToothSelection } from "./hooks/useToothSelection";
-import { useToothTooltip } from "./hooks/useToothTooltip";
-import type { OdontogramProps } from "./type";
-import { mapToCssVars } from "./utils";
+import {
+	type TooltipTargetEvent,
+	useToothTooltip,
+} from "./hooks/useToothTooltip";
+import type {
+	IdFormat,
+	Notation,
+	OdontogramLabels,
+	OdontogramProps,
+	OdontogramTooltipRenderProps,
+	ToothConditionGroup,
+	ToothDefinition,
+	ToothDetail,
+	ToothInteractionEvent,
+	ToothState,
+	ToothSurface,
+} from "./type";
+import { getThemeVars } from "./utils";
 
 export { getViewBox } from "./utils";
 
-const lightThemeColors = {
-	"--dark-blue": "#3e5edc",
-	"--base-blue": "#8a98be",
-	"--light-blue": "#c6ccf8",
-};
+/** What the default tooltip shows for a hovered or focused surface. */
+function getSurfaceTooltipDetails(
+	toothId: string,
+	surface: ToothSurface | undefined,
+	notation: Notation,
+	labels: OdontogramLabels,
+	isSurfaceSelected: (toothId: string, surface: ToothSurface) => boolean,
+	findings: readonly string[],
+): TooltipSurfaceDetails | undefined {
+	if (!surface) {
+		return undefined;
+	}
+	const name = getSurfaceName(surface, toothId);
+	return {
+		surface,
+		number: formatToothNumber(toothId, notation),
+		name: labels.surfaceNames[name],
+		description: labels.surfaceDescriptions[name],
+		selected: isSurfaceSelected(toothId, surface),
+		findings,
+	};
+}
 
-const darkThemeColors = {
-	"--dark-blue": "#aab6ff",
-	"--base-blue": "#d0d5f6",
-	"--light-blue": "#5361e6",
-};
+interface ChartSurfacesOptions
+	extends Pick<
+			OdontogramProps,
+			| "surfaces"
+			| "defaultSurfaces"
+			| "onSurfacesChange"
+			| "onSurfaceClick"
+			| "renderSurfaceMenu"
+		>,
+		Pick<
+			ChartSurfaceMenuOptions,
+			"diagramTeeth" | "findings" | "catalog" | "labels" | "spokenNumber"
+		> {
+	/** A surface menu opened; e.g. hides the tooltip. */
+	onMenuOpen: () => void;
+	idFormat: IdFormat;
+	disabled: boolean;
+	anchors: readonly ToothAnchor[];
+	stateOf: (toothId: string) => ToothState;
+	toothById: ReadonlyMap<string, ToothDefinition>;
+}
+
+/**
+ * Surfaces of the chart: their own selection, independent of the teeth, in
+ * either ID format at the boundary, or a menu per surface with
+ * `renderSurfaceMenu`. Missing and extracted teeth have no surfaces to select.
+ */
+function useChartSurfaces({
+	surfaces,
+	defaultSurfaces,
+	idFormat,
+	disabled,
+	anchors,
+	stateOf,
+	toothById,
+	onSurfacesChange,
+	onSurfaceClick,
+	renderSurfaceMenu,
+	onMenuOpen,
+	...menuOptions
+}: ChartSurfacesOptions) {
+	const controlled = useMemo(() => normalizeSurfaces(surfaces), [surfaces]);
+	const {
+		surfaces: current,
+		isSurfaceSelected,
+		toggle,
+	} = useSurfaceSelection({
+		value: controlled,
+		// Only read on mount, like any React default value.
+		defaultValue: normalizeSurfaces(defaultSurfaces),
+	});
+	const inactiveTeeth = useMemo(
+		() =>
+			new Set(
+				anchors
+					.map(({ toothId }) => toothId)
+					.filter((id) => absentToothStates.has(stateOf(id))),
+			),
+		[anchors, stateOf],
+	);
+
+	const activate = useCallback(
+		(toothId: string, surface: ToothSurface) => {
+			const tooth = toothById.get(toothId);
+			if (disabled || inactiveTeeth.has(toothId) || !tooth) {
+				return;
+			}
+			const next = formatPublicSurfaces(toggle(toothId, surface), idFormat);
+			onSurfacesChange?.(next);
+			onSurfaceClick?.(tooth, surface, next);
+		},
+		[
+			disabled,
+			idFormat,
+			inactiveTeeth,
+			onSurfaceClick,
+			onSurfacesChange,
+			toggle,
+			toothById,
+		],
+	);
+
+	// With a menu, a click reports the current surfaces instead of toggling.
+	const openMenu = useCallback(
+		(toothId: string, surface: ToothSurface) => {
+			const tooth = toothById.get(toothId);
+			if (tooth) {
+				onSurfaceClick?.(
+					tooth,
+					surface,
+					formatPublicSurfaces(current, idFormat),
+				);
+			}
+			onMenuOpen();
+		},
+		[current, idFormat, onMenuOpen, onSurfaceClick, toothById],
+	);
+	const menu = useChartSurfaceMenu({
+		...menuOptions,
+		renderSurfaceMenu,
+		toothById,
+		onOpen: openMenu,
+	});
+
+	return {
+		isSurfaceSelected,
+		inactiveTeeth,
+		menu: Boolean(renderSurfaceMenu),
+		activate: renderSurfaceMenu ? menu.open : activate,
+		openMenu: menu.openMenu,
+		isMenuOpen: menu.isOpen,
+		menuNode: menu.node,
+	};
+}
+
+interface TooltipContentOptions {
+	tooth?: ToothDefinition;
+	renderTooltip: OdontogramProps["renderTooltip"];
+	content: NonNullable<OdontogramProps["tooltip"]>["content"];
+	selected: boolean;
+	condition?: ToothConditionGroup;
+	state: ToothState;
+	/** The hovered surface; `selected` then refers to it. */
+	surface?: TooltipSurfaceDetails;
+	findings: TooltipFindings;
+	notation: Notation;
+	detail: (toothId: string) => ToothDetail;
+}
+
+/**
+ * Tooltip content: `renderTooltip` with the Vue slot payload, built on each
+ * render so `selected` follows the selection; else `tooltip.content`.
+ */
+function getTooltipContent({
+	tooth,
+	renderTooltip,
+	content,
+	selected,
+	condition,
+	state,
+	surface,
+	findings,
+	notation,
+	detail,
+}: TooltipContentOptions): TooltipContentOptions["content"] {
+	if (!(renderTooltip && tooth)) {
+		return content;
+	}
+	const props: OdontogramTooltipRenderProps = {
+		tooth,
+		detail: detail(tooth.id),
+		selected: surface?.selected ?? selected,
+		condition,
+		state,
+		findings: findings.findings,
+		number: formatToothNumber(tooth.id, notation),
+		surface: surface?.surface,
+		surfaceName: surface?.name,
+		surfaceSummary: findings.surfaceSummary,
+	};
+	return () => renderTooltip(props);
+}
 
 export const Odontogram: FC<OdontogramProps> = ({
 	value,
@@ -49,18 +271,37 @@ export const Odontogram: FC<OdontogramProps> = ({
 	className = "",
 	theme = "light",
 	colors = {},
+	selectedColor,
+	hoverColor,
 	notation = "FDI",
 	tooltip = {
 		margin: 10,
 		placement: "top",
 	},
 	showTooltip = true,
+	renderTooltip,
+	showNumbers = false,
+	renderNumber,
+	renderOverlay,
+	labels,
 	showHalf = "full",
 	name,
 	dentition = "permanent",
+	teeth,
 	maxTeeth,
 	teethConditions,
 	conditions,
+	toothStates,
+	findings,
+	findingCatalog = ntsPeruFindingCatalog,
+	showSurfaces = false,
+	showSurfaceLetters = false,
+	surfaceShape = "square",
+	surfaces,
+	defaultSurfaces,
+	onSurfacesChange,
+	onSurfaceClick,
+	renderSurfaceMenu,
 	readOnly,
 	disabled,
 	showLabels = false,
@@ -77,6 +318,14 @@ export const Odontogram: FC<OdontogramProps> = ({
 	const conditionGroups = useMemo(
 		() => normalizeConditions(conditions, teethConditions),
 		[conditions, teethConditions],
+	);
+	const fdiToothStates = useMemo(
+		() => normalizeToothStates(toothStates),
+		[toothStates],
+	);
+	const stateOf = useCallback(
+		(id: string) => resolveToothState(fdiToothStates, id),
+		[fdiToothStates],
 	);
 
 	useEffect(() => {
@@ -106,16 +355,68 @@ export const Odontogram: FC<OdontogramProps> = ({
 		}
 	}, [teethConditions]);
 
+	const listedTeeth = useMemo(() => teeth?.map(toFdiId), [teeth]);
+
+	useEffect(() => {
+		if (!listedTeeth) {
+			return;
+		}
+		const known = new Set(getDentitionToothIds(dentition, "arch"));
+		const unknown = listedTeeth.filter((id) => !known.has(id));
+		if (unknown.length > 0) {
+			const list = unknown.join(", ");
+			warnOnce(
+				`teeth:${dentition}:${list}`,
+				`Teeth ${list} are not part of the ${dentition} dentition.`,
+			);
+		}
+	}, [listedTeeth, dentition]);
+
 	/**
 	 * Model and state
 	 */
-	const { viewBox, quadrants, conditionByTooth } = useOdontogram({
+	const resolvedLabels = useMemo(
+		() => resolveOdontogramLabels(labels),
+		[labels],
+	);
+	const fdiFindings = useMemo(() => normalizeFindings(findings), [findings]);
+	const {
+		viewBox,
+		quadrants,
+		anchors,
+		numberLabels,
+		conditionByTooth,
+		stateMarks,
+		legendStates,
+		surfaceDiagrams,
+		renderedFindings,
+		findingIssues,
+		findingsByTooth,
+	} = useOdontogram({
 		dentition,
 		layout: resolvedLayout,
 		showHalf,
 		maxTeeth,
+		teeth: listedTeeth,
+		showNumbers,
+		notation,
 		conditions: conditionGroups,
+		toothStates: fdiToothStates,
+		showSurfaces,
+		surfaceShape,
+		findings: fdiFindings,
+		findingCatalog,
 	});
+	const { descriptionOf, legendFindings, tooltipFindingsOf } = useChartFindings(
+		{
+			findings: fdiFindings,
+			catalog: findingCatalog,
+			renderedFindings,
+			findingsByTooth,
+			findingIssues,
+			labels: resolvedLabels,
+		},
+	);
 
 	const toToothDetail = useCallback(
 		(id: string) => buildToothDetail(id, idFormat),
@@ -132,6 +433,11 @@ export const Odontogram: FC<OdontogramProps> = ({
 		onChange: onChange ? (ids) => onChange(ids.map(toToothDetail)) : undefined,
 	});
 
+	const spokenNumber = useCallback(
+		(id: string) => formatToothNumber(id, notation, "text"),
+		[notation],
+	);
+
 	const {
 		svgRef,
 		tooltip: tooltipState,
@@ -143,23 +449,152 @@ export const Odontogram: FC<OdontogramProps> = ({
 		getPayload: toToothDetail,
 	});
 
+	/**
+	 * Keyboard: a single tab stop (roving tabindex) on the last focused
+	 * tooth, else the first selected visible tooth, else the first tooth.
+	 */
+	const [activeToothId, setActiveToothId] = useState<string>();
+	const focusableToothId = useMemo(() => {
+		const visible = new Set(anchors.map(({ toothId }) => toothId));
+		if (activeToothId && visible.has(activeToothId)) {
+			return activeToothId;
+		}
+		return selected.find((id) => visible.has(id)) ?? anchors[0]?.toothId;
+	}, [activeToothId, anchors, selected]);
+
+	const handleFocus = useCallback(
+		(id: string, event: ToothInteractionEvent) => {
+			setActiveToothId(id);
+			if (showTooltip) {
+				showToothTooltip(id, event);
+			}
+		},
+		[showTooltip, showToothTooltip],
+	);
+
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent<SVGGElement>, id: string) => {
 			if (event.key === "Enter" || event.key === " ") {
 				event.preventDefault();
 				toggle(id);
+				return;
+			}
+			if (!toothNavigationKeys.has(event.key)) {
+				return;
+			}
+
+			event.preventDefault();
+			const target = findNavigationTarget(
+				anchors,
+				id,
+				event.key as ToothNavigationKey,
+			);
+			if (target) {
+				setActiveToothId(target);
+				svgRef.current
+					?.querySelector<SVGGElement>(`[data-tooth-id="${target}"]`)
+					?.focus();
 			}
 		},
-		[toggle],
+		[anchors, svgRef, toggle],
 	);
+
+	/**
+	 * Tooltip content: `renderTooltip` gets the Vue slot payload, built when
+	 * shown so `selected` follows the selection.
+	 */
+	const toothById = useMemo(
+		() =>
+			new Map(
+				quadrants.flatMap(({ teeth: drawn }) =>
+					drawn.map(({ tooth }) => [tooth.id, tooth] as const),
+				),
+			),
+		[quadrants],
+	);
+	const diagramTeeth = useMemo(
+		() => new Set(surfaceDiagrams.map(({ toothId }) => toothId)),
+		[surfaceDiagrams],
+	);
+	const {
+		isSurfaceSelected,
+		inactiveTeeth: inactiveSurfaceTeeth,
+		activate: handleSurfaceActivate,
+		menu: hasSurfaceMenu,
+		openMenu,
+		isMenuOpen,
+		menuNode,
+	} = useChartSurfaces({
+		surfaces,
+		defaultSurfaces,
+		idFormat,
+		disabled: isDisabled,
+		anchors,
+		stateOf,
+		toothById,
+		onSurfacesChange,
+		onSurfaceClick,
+		renderSurfaceMenu,
+		onMenuOpen: hideToothTooltip,
+		diagramTeeth,
+		findings: fdiFindings,
+		catalog: findingCatalog,
+		labels: resolvedLabels,
+		spokenNumber,
+	});
+	const tooltipToothId = tooltipState.toothId ?? "";
+	const tooltipCondition = conditionByTooth.get(tooltipToothId);
+	const tooltipToothState = stateOf(tooltipToothId);
+	const tooltipFindings = tooltipFindingsOf(
+		tooltipToothId,
+		tooltipState.surface,
+	);
+	const tooltipSurfaceDetails = getSurfaceTooltipDetails(
+		tooltipToothId,
+		tooltipState.surface,
+		notation,
+		resolvedLabels,
+		isSurfaceSelected,
+		tooltipFindings.findings,
+	);
+	const tooltipContent = getTooltipContent({
+		tooth: toothById.get(tooltipToothId),
+		renderTooltip,
+		content: tooltip.content,
+		selected: isSelected(tooltipToothId),
+		condition: tooltipCondition,
+		state: tooltipToothState,
+		surface: tooltipSurfaceDetails,
+		findings: tooltipFindings,
+		notation,
+		detail: toToothDetail,
+	});
+
+	const showSurfaceTooltip = useCallback(
+		(toothId: string, surface: ToothSurface, event: TooltipTargetEvent) =>
+			showToothTooltip(toothId, event, surface),
+		[showToothTooltip],
+	);
+	// Teeth and surfaces follow the same `showTooltip` switch.
+	const tooltipHandlers = showTooltip
+		? {
+				tooth: {
+					onShowTooltip: showToothTooltip,
+					onHideTooltip: hideToothTooltip,
+				},
+				surface: { onEnter: showSurfaceTooltip, onLeave: hideToothTooltip },
+			}
+		: { tooth: {}, surface: {} };
 
 	/**
 	 * Colors
 	 */
-	const finalColors = {
-		...(theme === "dark" ? darkThemeColors : lightThemeColors),
-		...mapToCssVars(colors),
-	};
+	const finalColors = getThemeVars({
+		theme,
+		colors,
+		selectedColor,
+		hoverColor,
+	});
 
 	const containerClasses = [
 		"Odontogram",
@@ -185,9 +620,10 @@ export const Odontogram: FC<OdontogramProps> = ({
 			}}
 			role={isDisabled ? "group" : "listbox"}
 			aria-multiselectable={isDisabled ? undefined : !singleSelect}
-			aria-label="Odontogram"
+			aria-label={resolvedLabels.odontogram}
 			data-read-only={isDisabled ? "true" : "false"}
-			tabIndex={isDisabled ? -1 : 0}
+			// The teeth hold the single tab stop, not the container.
+			tabIndex={isDisabled ? -1 : undefined}
 		>
 			<input
 				type="hidden"
@@ -210,31 +646,95 @@ export const Odontogram: FC<OdontogramProps> = ({
 					touchAction: "manipulation",
 				}}
 			>
-				<title>Odontogram</title>
+				<title>{resolvedLabels.chartTitles[dentition]}</title>
 
 				<ToothLayer
 					quadrants={quadrants}
 					notation={notation}
+					toothLabel={resolvedLabels.tooth}
+					stateOf={stateOf}
+					stateLabels={resolvedLabels.states}
+					descriptionOf={descriptionOf}
+					focusableToothId={isDisabled ? undefined : focusableToothId}
 					disabled={isDisabled}
 					isSelected={isSelected}
 					conditionByTooth={conditionByTooth}
 					onSelect={toggle}
 					onKeyDown={handleKeyDown}
-					onShowTooltip={showTooltip ? showToothTooltip : undefined}
-					onHideTooltip={showTooltip ? hideToothTooltip : undefined}
+					{...tooltipHandlers.tooth}
+					onFocusTooth={handleFocus}
+				/>
+
+				<StateMarkLayer marks={stateMarks} />
+
+				<SurfaceDiagrams
+					diagrams={surfaceDiagrams}
+					anchors={anchors}
+					isSelected={isSurfaceSelected}
+					disabled={isDisabled}
+					inactiveTeeth={inactiveSurfaceTeeth}
+					labels={resolvedLabels}
+					spokenNumber={spokenNumber}
+					onActivate={handleSurfaceActivate}
+					menu={hasSurfaceMenu}
+					openMenu={openMenu}
+					{...tooltipHandlers.surface}
+				/>
+
+				<FindingLayer findings={renderedFindings} />
+
+				<SurfaceLetters
+					show={showSurfaceLetters}
+					diagrams={surfaceDiagrams}
+					letters={resolvedLabels.surfaceLetters}
+				/>
+
+				<NumberLayer
+					labels={numberLabels}
+					notation={notation}
+					isSelected={isSelected}
+					renderNumber={renderNumber}
+				/>
+
+				<OverlayLayer
+					renderOverlay={renderOverlay}
+					anchors={anchors}
+					viewBox={viewBox}
+					dentition={dentition}
+					layout={resolvedLayout}
+					surfaceDiagrams={surfaceDiagrams}
 				/>
 			</svg>
 
 			{showTooltip && (
 				<OdontogramTooltip
-					active={tooltipState.active}
+					// The tooltip gives way to an open surface menu.
+					active={tooltipState.active && !isMenuOpen}
 					position={tooltipState.position}
 					payload={tooltipState.payload}
-					content={tooltip.content}
+					content={tooltipContent}
+					condition={tooltipCondition}
+					state={tooltipToothState}
+					surface={tooltipSurfaceDetails}
+					findings={tooltipFindings.findings}
+					surfaceSummary={tooltipFindings.surfaceSummary}
+					labels={resolvedLabels}
 				/>
 			)}
 
-			{showLabels && <ConditionLabels conditions={conditionGroups} />}
+			{menuNode}
+
+			{showLabels && (
+				<ConditionLabels
+					conditions={conditionGroups}
+					states={legendStates.map((state) => ({
+						state,
+						label: resolvedLabels.states[state],
+					}))}
+					findings={legendFindings}
+					ariaLabel={resolvedLabels.legend}
+				/>
+			)}
 		</div>
 	);
 };

@@ -3,6 +3,7 @@ import type {
 	OdontogramColors,
 	OdontogramLayoutInput,
 	Placement,
+	Theme,
 } from "./type";
 
 type ShowHalf = "full" | "upper" | "lower";
@@ -51,6 +52,21 @@ export function mapToCssVars(colors: OdontogramColors) {
 		cssVars["--light-blue"] = colors.lightBlue;
 	}
 
+	// vue-odontogram names; they win over the 0.5.x ones above.
+	const themeVars: [keyof OdontogramColors, string][] = [
+		["stroke", "--odontogram-stroke-color"],
+		["selected", "--odontogram-selected-color"],
+		["hover", "--odontogram-hover-color"],
+		["selectedStroke", "--odontogram-selected-stroke-color"],
+		["accent", "--odontogram-accent-color"],
+	];
+	for (const [key, name] of themeVars) {
+		const value = colors[key];
+		if (value) {
+			cssVars[name] = value;
+		}
+	}
+
 	return cssVars;
 }
 
@@ -73,3 +89,45 @@ export const placements: Record<
 };
 
 //425, 55
+
+const lightThemeColors = {
+	"--dark-blue": "#3e5edc",
+	"--base-blue": "#8a98be",
+	"--light-blue": "#c6ccf8",
+};
+
+const darkThemeColors = {
+	"--dark-blue": "#aab6ff",
+	"--base-blue": "#d0d5f6",
+	"--light-blue": "#5361e6",
+};
+
+export interface ThemeVarsOptions {
+	theme: Theme;
+	colors: OdontogramColors;
+	/** Shortcut of `colors.selected`. */
+	selectedColor?: string;
+	/** Shortcut of `colors.hover`. */
+	hoverColor?: string;
+}
+
+/**
+ * CSS variables the chart writes on its container: the 0.5.x colors of the
+ * theme, then `colors` and the shortcut props (`colors` wins when it sets
+ * the same color).
+ */
+export function getThemeVars({
+	theme,
+	colors,
+	selectedColor,
+	hoverColor,
+}: ThemeVarsOptions): Record<string, string> {
+	return {
+		...(theme === "dark" ? darkThemeColors : lightThemeColors),
+		...mapToCssVars({
+			...colors,
+			selected: colors.selected ?? selectedColor,
+			hover: colors.hover ?? hoverColor,
+		}),
+	};
+}

@@ -15,7 +15,7 @@ export default {
 		},
 	},
 	args: {
-		layout: "square",
+		layout: "horizontal",
 	},
 	argTypes: {
 		theme: {
@@ -40,7 +40,7 @@ export const Light = Template.bind({});
 Light.args = {
 	theme: "light",
 	colors: {},
-	defaultSelected: ["teeth-11", "teeth-12", "teeth-22"],
+	defaultValue: ["11", "12", "22"],
 	onChange: (selected) => {
 		alert(JSON.stringify(selected));
 	},
@@ -60,7 +60,7 @@ Dark.args = {
 		baseBlue: "#d0d5f6",
 		lightBlue: "#5361e6",
 	},
-	defaultSelected: ["teeth-11", "teeth-12", "teeth-22"],
+	defaultValue: ["11", "12", "22"],
 };
 
 // Optional: force background to dark for dark story
@@ -71,7 +71,7 @@ Dark.parameters = {
 export const Default = Template.bind({});
 Default.args = {
 	colors: {},
-	defaultSelected: ["teeth-11", "teeth-12", "teeth-22"],
+	defaultValue: ["11", "12", "22"],
 };
 
 export const SingleSelect = Template.bind({});
@@ -79,7 +79,7 @@ SingleSelect.args = {
 	theme: "light",
 	colors: {},
 	singleSelect: true,
-	defaultSelected: ["teeth-11"],
+	defaultValue: ["11"],
 };
 SingleSelect.storyName = "Single Select";
 
@@ -106,7 +106,7 @@ WithCustomTooltip.args = {
 			</div>
 		),
 	},
-	defaultSelected: ["teeth-11"],
+	defaultValue: ["11"],
 };
 WithCustomTooltip.storyName = "Custom Tooltip";
 
@@ -114,7 +114,7 @@ export const WithoutTooltip = Template.bind({});
 WithoutTooltip.args = {
 	theme: "light",
 	colors: {},
-	defaultSelected: ["teeth-11", "teeth-21"],
+	defaultValue: ["11", "21"],
 	showTooltip: false, // 👈 No tooltip prop passed
 };
 WithoutTooltip.storyName = "Without Tooltip";
@@ -123,7 +123,7 @@ export const UpperHalf = Template.bind({});
 UpperHalf.args = {
 	theme: "light",
 	colors: {},
-	defaultSelected: ["teeth-11", "teeth-21"],
+	defaultValue: ["11", "21"],
 	showTooltip: true, // 👈 No tooltip prop passed
 	showHalf: "upper",
 };
@@ -133,7 +133,7 @@ export const LowerHalf = Template.bind({});
 LowerHalf.args = {
 	theme: "light",
 	colors: {},
-	defaultSelected: ["teeth-11", "teeth-21"],
+	defaultValue: ["11", "21"],
 	showTooltip: true, // 👈 No tooltip prop passed
 	showHalf: "lower",
 };

@@ -12,6 +12,6 @@
 		"typescript": "latest",
 		"react": "18.3.1",
 		"react-dom": "18.3.1",
-		"react-odontogram": "file:../.."
+		"@kmanueldc/react-odontogram": "file:../.."
 	}
 }

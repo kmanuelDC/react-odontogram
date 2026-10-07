@@ -1,3 +1,19 @@
+/*
+ * Theme variables. The vue-odontogram names are the main API; the 0.5.x
+ * names (`--base-blue`, `--light-blue`, `--dark-blue`, set by `theme` and
+ * `colors`) are their fallbacks:
+ *
+ * --odontogram-stroke-color           tooth outlines        (--base-blue)
+ * --odontogram-selected-color         selected tooth fill   (--light-blue)
+ * --odontogram-hover-color            hovered tooth fill    (selected color)
+ * --odontogram-accent-color           selected surfaces, numbers, guide
+ *                                     highlights            (--dark-blue)
+ * --odontogram-selected-stroke-color  selected tooth stroke (accent color)
+ * --odontogram-focus-outline-color    keyboard focus ring   (accent color)
+ *
+ * Every other `--odontogram-*` variable (numbers, states, surfaces,
+ * findings, tooltip, menu) falls back to these.
+ */
 :root {
 	--dark-blue: #3e5edc;
 	--base-blue: #8a98be;
@@ -38,7 +54,7 @@
 }
 
 .Odontogram svg {
-	color: var(--base-blue);
+	color: var(--odontogram-stroke-color, var(--base-blue));
 	fill: none;
 	transition: all ease-in 125ms;
 }
@@ -58,7 +74,7 @@
 }
 
 .Odontogram g.selected path:nth-of-type(2) {
-	fill: var(--light-blue);
+	fill: var(--odontogram-selected-color, var(--light-blue));
 	opacity: 1;
 }
 
@@ -87,7 +103,10 @@
 
 .Odontogram g.selected {
 	transition: all 0.3s ease;
-	color: var(--dark-blue);
+	color: var(
+		--odontogram-selected-stroke-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
 }
 
 .Odontogram g.selected path {
@@ -95,7 +114,10 @@
 }
 
 .Odontogram g[class^="teeth-"]:hover path:nth-of-type(2) {
-	fill: var(--light-blue);
+	fill: var(
+		--odontogram-hover-color,
+		var(--odontogram-selected-color, var(--light-blue))
+	);
 	opacity: 1;
 }
 
@@ -105,5 +127,637 @@
 }
 
 .Odontogram g[role="option"]:focus-visible {
-	outline: 4px solid var(--dark-blue) !important;
+	outline: 4px solid
+		var(
+			--odontogram-focus-outline-color,
+			var(--odontogram-accent-color, var(--dark-blue))
+		) !important;
+}
+
+/* Tooth numbers (`showNumbers`); the corners are not tooth shadows. */
+.Odontogram svg .odontogram__numbers {
+	pointer-events: none;
+}
+
+.Odontogram svg .odontogram__number {
+	fill: var(--odontogram-number-color, #64748b);
+	font-family: inherit;
+	font-variant-numeric: tabular-nums;
+}
+
+.Odontogram svg .odontogram__numbers path {
+	fill: none;
+	opacity: 1;
+	stroke: var(--odontogram-number-color, #64748b);
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.Odontogram svg .odontogram__number--selected {
+	fill: var(
+		--odontogram-number-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+	font-weight: 700;
+}
+
+.Odontogram svg .odontogram__numbers path.odontogram__number-corner--selected {
+	stroke: var(
+		--odontogram-number-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+}
+
+.Odontogram.dark-theme {
+	--odontogram-number-color: #aab3cf;
+}
+
+/* Tooth states (`toothStates`): absent teeth keep only a dashed outline. */
+.Odontogram svg .odontogram__state-marks {
+	pointer-events: none;
+}
+
+.Odontogram g.odontogram-tooth--absent {
+	opacity: var(--odontogram-absent-opacity, 0.55);
+}
+
+.Odontogram g.odontogram-tooth--unerupted {
+	opacity: var(--odontogram-unerupted-opacity, 0.45);
+}
+
+.Odontogram .odontogram-state-mark--cross line {
+	stroke: var(--odontogram-extracted-color, #dc2626);
+	stroke-linecap: round;
+}
+
+.Odontogram .odontogram-state-mark--implant rect,
+.Odontogram .odontogram-state-mark--implant line {
+	stroke: var(--odontogram-implant-color, #0f766e);
+	stroke-linecap: round;
+}
+
+.Odontogram .odontogram-state-mark--implant rect {
+	fill: var(--odontogram-implant-fill, #ccfbf1);
+}
+
+/* Legend icons of the tooth states. */
+.odontogram-condition-labels__icon {
+	width: 16px;
+	height: 16px;
+	overflow: visible;
+}
+
+.odontogram-condition-labels__icon-tooth {
+	stroke: var(--odontogram-stroke-color, var(--base-blue));
+	stroke-width: 1.5;
+}
+
+.odontogram-condition-labels__icon line,
+.odontogram-condition-labels__icon .odontogram-state-mark--implant rect {
+	stroke-width: 1.5;
+}
+
+.odontogram-condition-labels__icon-tooth--missing,
+.odontogram-condition-labels__icon-tooth--extracted {
+	opacity: var(--odontogram-absent-opacity, 0.55);
+}
+
+.odontogram-condition-labels__icon-tooth--unerupted {
+	opacity: var(--odontogram-unerupted-opacity, 0.45);
+}
+
+/*
+ * Surface diagrams (`showSurfaces`): white surfaces, filled when selected.
+ * The defaults are fallbacks, not variables set on the chart, so the app can
+ * set the variables on any ancestor (the inner <svg> is `.Odontogram` too).
+ */
+.Odontogram.dark-theme svg path.odontogram-surface {
+	fill: var(--odontogram-surface-fill, #161a2e);
+}
+
+.Odontogram.dark-theme svg .odontogram__surface-letter {
+	fill: var(--odontogram-surface-letter-color, #e4e6ef);
+	stroke: var(--odontogram-surface-fill, #161a2e);
+}
+
+/* Not tooth shadows: always visible, whatever their position in the group. */
+.Odontogram svg path.odontogram-surface {
+	opacity: 1;
+	fill: var(--odontogram-surface-fill, #fff);
+	stroke: var(
+		--odontogram-surface-stroke-color,
+		var(--odontogram-stroke-color, var(--base-blue))
+	);
+	stroke-linejoin: round;
+	cursor: pointer;
+	transition: fill 150ms ease-in;
+}
+
+.Odontogram:not([data-read-only="true"])
+	.odontogram-surfaces:not(.odontogram-surfaces--inactive)
+	path.odontogram-surface:hover {
+	fill: var(
+		--odontogram-surface-hover-color,
+		var(
+			--odontogram-hover-color,
+			var(--odontogram-selected-color, var(--light-blue))
+		)
+	);
+}
+
+/* As specific as the dark theme surface, and after it. */
+.Odontogram svg path.odontogram-surface.odontogram-surface--selected,
+.Odontogram svg path.odontogram-surface.odontogram-surface--selected:hover {
+	fill: var(
+		--odontogram-surface-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+}
+
+.Odontogram svg path.odontogram-surface:focus {
+	outline: none;
+}
+
+.Odontogram svg path.odontogram-surface:focus-visible {
+	stroke: var(
+		--odontogram-surface-focus-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+	stroke-width: 2px;
+}
+
+.Odontogram .odontogram-surfaces--inactive {
+	opacity: var(--odontogram-absent-opacity, 0.55);
+}
+
+.Odontogram .odontogram-surfaces--inactive path.odontogram-surface,
+.Odontogram[data-read-only="true"] path.odontogram-surface {
+	cursor: default;
+}
+
+.Odontogram svg .odontogram__surface-letters {
+	pointer-events: none;
+}
+
+.Odontogram svg .odontogram__surface-letter {
+	fill: var(--odontogram-surface-letter-color, #334155);
+	font-family: inherit;
+	font-weight: 700;
+	paint-order: stroke;
+	stroke: var(--odontogram-surface-fill, #fff);
+	stroke-width: 0.12em;
+}
+
+/* Surface definitions are longer than the other tooltip lines, so they wrap. */
+.odontogram-tooltip__description {
+	max-width: 16rem;
+	margin-bottom: 2px;
+	opacity: 0.8;
+	white-space: normal;
+}
+
+/*
+ * Findings (`findings`): blue for good state or completed treatment, red for
+ * bad state or pending; `color` on a finding overrides both.
+ */
+.Odontogram svg .odontogram__findings {
+	pointer-events: none;
+}
+
+:is(.Odontogram, .odontogram-surface-guide) .odontogram-finding--good,
+.Odontogram.dark-theme svg.odontogram-finding--good {
+	color: var(--odontogram-finding-good-color, #1d4ed8);
+}
+
+:is(.Odontogram, .odontogram-surface-guide) .odontogram-finding--bad,
+.Odontogram.dark-theme svg.odontogram-finding--bad {
+	color: var(--odontogram-finding-bad-color, #dc2626);
+}
+
+/* Not tooth shadows: always visible, whatever their position in the group. */
+.Odontogram svg .odontogram-finding path,
+.Odontogram svg.odontogram-finding path {
+	opacity: 1;
+	transition: none;
+}
+
+:is(.Odontogram, .odontogram-surface-guide) .odontogram-finding__stroke {
+	fill: none;
+	stroke: currentColor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+:is(.Odontogram, .odontogram-surface-guide) .odontogram-finding__area {
+	fill: currentColor;
+	stroke: var(
+		--odontogram-surface-stroke-color,
+		var(--odontogram-stroke-color, var(--base-blue))
+	);
+	stroke-linejoin: round;
+}
+
+/*
+ * Planned treatments: dashed strokes (sized from the stroke width by the
+ * chart; override with --odontogram-finding-planned-dasharray) and a
+ * lighter fill.
+ */
+:is(.Odontogram, .odontogram-surface-guide)
+	.odontogram-finding--planned
+	.odontogram-finding__stroke {
+	stroke-dasharray: var(--odontogram-finding-planned-dasharray);
+}
+
+:is(.Odontogram, .odontogram-surface-guide)
+	.odontogram-finding--planned
+	.odontogram-finding__area {
+	stroke-dasharray: none;
+	fill-opacity: var(--odontogram-finding-planned-fill-opacity, 0.45);
+}
+
+.Odontogram
+	.odontogram-condition-labels
+	.odontogram-finding--planned
+	.odontogram-finding__stroke {
+	stroke-dasharray: var(--odontogram-finding-planned-dasharray, 2 1.5);
+}
+
+:is(.Odontogram, .odontogram-surface-guide) .odontogram-finding__text {
+	fill: currentColor;
+	font-family: inherit;
+	font-weight: 700;
+}
+
+/* Lighter tones on the dark theme; fallbacks, so the variables still win. */
+.Odontogram.dark-theme .odontogram-finding--good,
+.Odontogram.dark-theme svg.odontogram-finding--good {
+	color: var(--odontogram-finding-good-color, #7aa2ff);
+}
+
+.Odontogram.dark-theme .odontogram-finding--bad,
+.Odontogram.dark-theme svg.odontogram-finding--bad {
+	color: var(--odontogram-finding-bad-color, #ff7a7a);
+}
+
+/* Per-surface summary of the tooth tooltip: one line per surface. */
+.odontogram-tooltip__summary {
+	padding-left: 0.5rem;
+}
+
+.odontogram-tooltip__letter {
+	display: inline-block;
+	min-width: 1.1em;
+	font-weight: 700;
+}
+
+/* Surface guide (`SurfaceGuide`): one tooth's surfaces, next to the chart. */
+.odontogram-surface-guide {
+	display: grid;
+	grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr);
+	gap: 0.5rem 1rem;
+	align-items: start;
+	color: #1e293b;
+	font-family: inherit;
+}
+
+.odontogram-surface-guide__title {
+	grid-column: 1 / -1;
+	margin: 0;
+	font-weight: 700;
+}
+
+.odontogram-surface-guide__diagram {
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.odontogram-surface-guide__diagram .odontogram-surface {
+	fill: var(--odontogram-surface-fill, #fff);
+	stroke: var(
+		--odontogram-surface-stroke-color,
+		var(--odontogram-stroke-color, var(--base-blue))
+	);
+	stroke-linejoin: round;
+	cursor: pointer;
+	transition: fill 150ms ease-in;
+}
+
+.odontogram-surface-guide__diagram .odontogram-surface:hover {
+	fill: var(
+		--odontogram-surface-hover-color,
+		var(
+			--odontogram-hover-color,
+			var(--odontogram-selected-color, var(--light-blue))
+		)
+	);
+}
+
+.odontogram-surface-guide__diagram .odontogram-surface--selected,
+.odontogram-surface-guide__diagram .odontogram-surface--selected:hover {
+	fill: var(
+		--odontogram-surface-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+}
+
+.odontogram-surface-guide__highlight {
+	fill: none;
+	stroke: var(
+		--odontogram-surface-focus-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+	stroke-width: 2.4;
+	stroke-linejoin: round;
+	pointer-events: none;
+}
+
+.odontogram-surface-guide__findings {
+	pointer-events: none;
+}
+
+.odontogram-surface-guide__letter {
+	fill: var(--odontogram-surface-letter-color, #334155);
+	font-size: 10px;
+	font-weight: 700;
+	paint-order: stroke;
+	stroke: var(--odontogram-surface-fill, #fff);
+	stroke-width: 2.5px;
+	pointer-events: none;
+}
+
+.odontogram-surface-guide__letter--active {
+	fill: var(
+		--odontogram-surface-focus-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+}
+
+/* One column in narrow containers, several side by side when there is room. */
+.odontogram-surface-guide__list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+	gap: 0.25rem 0.75rem;
+	align-content: start;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Scoped under the guide so host button styles do not override it. */
+.odontogram-surface-guide .odontogram-surface-guide__item {
+	display: flex;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.35rem 0.5rem;
+	border: 1px solid transparent;
+	border-radius: 0.375rem;
+	color: inherit;
+	font: inherit;
+	font-size: 0.875rem;
+	text-align: left;
+	background: none;
+	cursor: pointer;
+}
+
+.odontogram-surface-guide .odontogram-surface-guide__item:disabled {
+	cursor: default;
+	opacity: 1;
+}
+
+.odontogram-surface-guide .odontogram-surface-guide__item--active {
+	border-color: var(
+		--odontogram-surface-focus-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+	background: var(--odontogram-surface-guide-active-bg, #eef2ff);
+}
+
+.odontogram-surface-guide__item[aria-pressed="true"]
+	.odontogram-surface-guide__badge {
+	color: #fff;
+	background: var(
+		--odontogram-surface-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+}
+
+.odontogram-surface-guide__badge {
+	flex: none;
+	display: inline-grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: 50%;
+	font-weight: 700;
+	background: #e2e8f0;
+}
+
+.odontogram-surface-guide__text {
+	display: grid;
+	gap: 0.1rem;
+}
+
+.odontogram-surface-guide__findings-text {
+	color: #475569;
+	font-size: 0.8125rem;
+}
+
+/* Surface menu (`renderSurfaceMenu`): a floating panel with the app's content. */
+.odontogram-surface-menu {
+	z-index: 1000;
+	min-width: 12rem;
+	max-width: min(22rem, calc(100vw - 16px));
+	padding: 0.75rem;
+	border: 1px solid var(--odontogram-surface-menu-border, #cbd5e1);
+	border-radius: 0.5rem;
+	color: var(--odontogram-surface-menu-fg, #1e293b);
+	background: var(--odontogram-surface-menu-bg, #fff);
+	box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+}
+
+/* Tooth inspector (`ToothInspector`): everything recorded on one tooth. */
+.odontogram-inspector {
+	display: grid;
+	gap: 0.75rem;
+	color: #1e293b;
+	font-family: inherit;
+	font-size: 0.875rem;
+}
+
+.odontogram-inspector__header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.5rem;
+}
+
+.odontogram-inspector__title {
+	font-size: 1rem;
+}
+
+.odontogram-inspector__type {
+	color: #64748b;
+}
+
+.odontogram-inspector__state {
+	padding: 0 0.4rem;
+	border-radius: 999px;
+	color: #b91c1c;
+	background: #fee2e2;
+}
+
+/* Diagram next to the details when there is room, above them otherwise. */
+.odontogram-inspector__body {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.odontogram-inspector .odontogram-inspector__guide {
+	flex: 0 0 9rem;
+	grid-template-columns: 1fr;
+}
+
+.odontogram-inspector__guide .odontogram-surface-guide__title {
+	display: none;
+}
+
+.odontogram-inspector__details {
+	flex: 1 1 14rem;
+	display: grid;
+	gap: 0.75rem;
+}
+
+.odontogram-inspector__section {
+	display: grid;
+	gap: 0.35rem;
+	margin: 0;
+}
+
+.odontogram-inspector__heading {
+	margin: 0;
+	font-weight: 700;
+}
+
+.odontogram-inspector__list {
+	display: grid;
+	gap: 0.35rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.odontogram-inspector__list li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.odontogram-inspector__badge {
+	display: inline-grid;
+	place-items: center;
+	width: 1.4rem;
+	height: 1.4rem;
+	border-radius: 50%;
+	font-weight: 700;
+	background: #e2e8f0;
+}
+
+.odontogram-inspector__surface-name {
+	font-weight: 600;
+}
+
+.odontogram-inspector__entries {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+}
+
+.odontogram-inspector__entry {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.1rem 0.25rem 0.1rem 0.5rem;
+	border-radius: 999px;
+	background: #f1f5f9;
+}
+
+.odontogram-inspector .odontogram-inspector__remove {
+	width: 1.25rem;
+	height: 1.25rem;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	color: #475569;
+	font: inherit;
+	line-height: 1;
+	background: transparent;
+	cursor: pointer;
+}
+
+.odontogram-inspector .odontogram-inspector__remove:hover,
+.odontogram-inspector .odontogram-inspector__remove:focus-visible {
+	color: #fff;
+	background: #dc2626;
+}
+
+.odontogram-inspector__empty,
+.odontogram-inspector__hint {
+	margin: 0;
+	color: #64748b;
+}
+
+.odontogram-inspector__field {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.odontogram-inspector__status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.75rem;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.odontogram-inspector__status legend {
+	padding: 0;
+	margin-bottom: 0.25rem;
+}
+
+.odontogram-inspector .odontogram-inspector__add {
+	justify-self: start;
+	padding: 0.35rem 0.9rem;
+	border: 1px solid
+		var(
+			--odontogram-surface-selected-color,
+			var(--odontogram-accent-color, var(--dark-blue))
+		);
+	border-radius: 0.375rem;
+	color: #fff;
+	font: inherit;
+	background: var(
+		--odontogram-surface-selected-color,
+		var(--odontogram-accent-color, var(--dark-blue))
+	);
+	cursor: pointer;
+}
+
+.odontogram-inspector .odontogram-inspector__add:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Overlay (`renderOverlay`): never blocks tooth clicks unless a child opts in. */
+.Odontogram svg .odontogram__overlay {
+	pointer-events: none;
+}
+
+/* The legend follows the theme's text color. */
+.Odontogram.dark-theme .odontogram-condition-labels {
+	color: #e4e6ef;
 }

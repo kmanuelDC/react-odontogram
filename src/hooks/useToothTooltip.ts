@@ -1,6 +1,13 @@
-import { useCallback, useRef, useState } from "react";
+import type { ToothSurface } from "@kmanueldc/odontogram-core";
+import {
+	type FocusEvent,
+	type MouseEvent,
+	useCallback,
+	useRef,
+	useState,
+} from "react";
 import type { OdontogramTooltipProps } from "../Tooltip";
-import type { Placement, ToothDetail, ToothInteractionEvent } from "../type";
+import type { Placement, ToothDetail } from "../type";
 import { placements } from "../utils";
 
 export interface ToothTooltipOptions {
@@ -13,11 +20,22 @@ export interface ToothTooltipOptions {
 type TooltipState = Pick<
 	OdontogramTooltipProps,
 	"active" | "position" | "payload"
->;
+> & {
+	/** FDI ID of the tooth the tooltip is for. */
+	toothId?: string;
+	/** Hovered or focused surface, when the tooltip is for a surface. */
+	surface?: ToothSurface;
+};
+
+/** Hover or focus on a tooth group or a surface polygon. */
+export type TooltipTargetEvent =
+	| MouseEvent<SVGElement>
+	| FocusEvent<SVGElement>;
 
 /**
- * Tooltip state for the teeth of a chart: `show` anchors it to the tooth that
- * received the event, `hide` closes it. Render `svgRef` on the chart's SVG.
+ * Tooltip state for the teeth of a chart: `show` anchors it to the tooth (or
+ * surface) that received the event, `hide` closes it. Render `svgRef` on the
+ * chart's SVG.
  */
 export function useToothTooltip({
 	placement = "right",
@@ -28,8 +46,13 @@ export function useToothTooltip({
 	const [tooltip, setTooltip] = useState<TooltipState>({ active: false });
 
 	const show = useCallback(
-		(toothId: string, event: ToothInteractionEvent) => {
-			const path = event.currentTarget.querySelector("path");
+		(toothId: string, event: TooltipTargetEvent, surface?: ToothSurface) => {
+			const target = event.currentTarget;
+			// A surface is its own polygon; a tooth is anchored to its outline.
+			const path =
+				target.tagName.toLowerCase() === "path"
+					? target
+					: target.querySelector("path");
 			if (!(path && svgRef.current)) {
 				return;
 			}
@@ -53,6 +76,8 @@ export function useToothTooltip({
 					},
 				},
 				payload: getPayload(toothId),
+				toothId,
+				surface,
 			});
 		},
 		[getPayload, margin, placement],

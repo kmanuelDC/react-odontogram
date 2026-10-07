@@ -8,7 +8,9 @@ declare module "react-native-svg" {
 
 	const Svg: ComponentType<SvgElementProps>;
 
+	export const Circle: ComponentType<SvgElementProps>;
 	export const G: ComponentType<SvgElementProps>;
+	export const Line: ComponentType<SvgElementProps>;
 	export const Path: ComponentType<SvgElementProps>;
 	export const Rect: ComponentType<SvgElementProps>;
 	export const Text: ComponentType<SvgElementProps>;

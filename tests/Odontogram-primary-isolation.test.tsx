@@ -2,8 +2,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/core/data/permanent", () => ({ permanentTeethPaths: [] }));
-vi.mock("../src/core/data/permanent-horizontal", () => ({
+vi.mock("../packages/odontogram-core/src/data/permanent", () => ({
+	permanentTeethPaths: [],
+}));
+vi.mock("../packages/odontogram-core/src/data/permanent-horizontal", () => ({
 	permanentHorizontalTeethPaths: [],
 }));
 

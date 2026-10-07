@@ -1,10 +1,12 @@
+import {
+	type ToothDefinition,
+	composeQuadrants,
+} from "@kmanueldc/odontogram-core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import Odontogram from "../src/Odontogram";
 import { Tooth } from "../src/Tooth";
-import type { ToothDefinition } from "../src/core/types/odontogram";
-import { composeQuadrants } from "../src/core/utils/compositions";
 import type { ToothDetail } from "../src/type";
 
 const hiddenValue = (container: HTMLElement) =>

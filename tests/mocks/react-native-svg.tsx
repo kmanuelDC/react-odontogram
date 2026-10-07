@@ -12,7 +12,9 @@ const createSvgMock =
 
 const Svg = createSvgMock("Svg");
 
+export const Circle = createSvgMock("Circle");
 export const G = createSvgMock("G");
+export const Line = createSvgMock("Line");
 export const Path = createSvgMock("Path");
 export const Rect = createSvgMock("Rect");
 export const Text = createSvgMock("Text");
