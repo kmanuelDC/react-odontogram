@@ -36,6 +36,7 @@
 	"scripts": {
 		"dev": "concurrently \"pnpm build --watch\" \"pnpm storybook\" \"pnpm test\" ",
 		"build": "tsup",
+		"prepublishOnly": "pnpm build",
 		"lint": "biome check --write --unsafe .",
 		"lint:ci": "biome check --unsafe .",
 		"test": "vitest",
