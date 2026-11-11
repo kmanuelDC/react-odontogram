@@ -94,7 +94,9 @@ describe("mixed dentition in the component", () => {
 	it("does not draw quadrants without listed teeth", () => {
 		const { container } = mixed({ teeth: ["11", "51"] });
 
-		expect(container.querySelectorAll("svg > g")).toHaveLength(2);
+		expect(
+			container.querySelectorAll('svg > g[role="listbox"] > g'),
+		).toHaveLength(2);
 	});
 
 	it("also filters permanent and primary charts, and warns about unknown teeth", () => {

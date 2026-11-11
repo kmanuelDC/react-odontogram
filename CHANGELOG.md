@@ -9,6 +9,18 @@ All notable changes to `@kmanueldc/react-odontogram`. The format follows
 Pratik Sharma (biomathcode). Its version numbers start again at 0.1.0;
 entries from 0.6.0 down use the upstream numbering.
 
+## [0.1.1] - 2026-11-11
+
+### Fixed
+
+- **Accessibility: `aria-required-children` (axe, WCAG 2.1 A).** An
+  interactive chart put `role="listbox"` on its root, which also held the
+  surface checkboxes or buttons, the legend and the surface menu. Now the root
+  is always `role="group"` (with its `aria-label`, no `aria-multiselectable`).
+  The `listbox` (with `aria-multiselectable` and the same label) moves to a new
+  `<g>` in the SVG that holds only the tooth options. Keyboard, focus and
+  selection are unchanged. See [MIGRATION.md](MIGRATION.md).
+
 ## [0.1.0] - Unreleased
 
 First release as `@kmanueldc/react-odontogram`. It contains upstream

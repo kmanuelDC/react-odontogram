@@ -19,6 +19,24 @@ IDs, and the hidden form input keeps its format. Deprecated props log one
 warning in development (never in production builds). They will be removed
 in 1.0.
 
+## 0.1.0 → 0.1.1: chart roles
+
+Only queries by role change. The root `div.Odontogram` is now always
+`role="group"`; in 0.1.0 an interactive chart had `role="listbox"` there.
+The tooth `listbox` (same accessible name, `aria-multiselectable`) is now a
+`<g>` inside the SVG, around the teeth, and is absent when the chart is
+read-only, as before.
+
+```diff
+- const chart = screen.getByRole("listbox");          // root div
++ const chart = screen.getByRole("group", { name: "Odontogram" });
+  const teeth = screen.getByRole("listbox");          // still works: the teeth
+```
+
+The quadrant `<g>`s are one level deeper (inside that wrapper, which is drawn
+in read-only charts too, without a role): styles using `.Odontogram > svg > g`
+need `svg > g > g`, or better the tooth classes (`g[class^="teeth-"]`).
+
 ## Deprecated props
 
 | 0.5.x | 0.6 | Notes |

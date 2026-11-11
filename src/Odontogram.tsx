@@ -618,8 +618,9 @@ export const Odontogram: FC<OdontogramProps> = ({
 				alignItems: "center",
 				...(styles as CSSProperties),
 			}}
-			role={isDisabled ? "group" : "listbox"}
-			aria-multiselectable={isDisabled ? undefined : !singleSelect}
+			// `group`, not `listbox`: the root also holds surface checkboxes, the legend and the menu.
+			// biome-ignore lint/a11y/useSemanticElements: a <fieldset> root would change the markup consumers style.
+			role="group"
 			aria-label={resolvedLabels.odontogram}
 			data-read-only={isDisabled ? "true" : "false"}
 			// The teeth hold the single tab stop, not the container.
@@ -648,22 +649,29 @@ export const Odontogram: FC<OdontogramProps> = ({
 			>
 				<title>{resolvedLabels.chartTitles[dentition]}</title>
 
-				<ToothLayer
-					quadrants={quadrants}
-					notation={notation}
-					toothLabel={resolvedLabels.tooth}
-					stateOf={stateOf}
-					stateLabels={resolvedLabels.states}
-					descriptionOf={descriptionOf}
-					focusableToothId={isDisabled ? undefined : focusableToothId}
-					disabled={isDisabled}
-					isSelected={isSelected}
-					conditionByTooth={conditionByTooth}
-					onSelect={toggle}
-					onKeyDown={handleKeyDown}
-					{...tooltipHandlers.tooth}
-					onFocusTooth={handleFocus}
-				/>
+				{/* The listbox holds only the tooth options (ARIA allows nothing else in it). */}
+				<g
+					role={isDisabled ? undefined : "listbox"}
+					aria-multiselectable={isDisabled ? undefined : !singleSelect}
+					aria-label={isDisabled ? undefined : resolvedLabels.odontogram}
+				>
+					<ToothLayer
+						quadrants={quadrants}
+						notation={notation}
+						toothLabel={resolvedLabels.tooth}
+						stateOf={stateOf}
+						stateLabels={resolvedLabels.states}
+						descriptionOf={descriptionOf}
+						focusableToothId={isDisabled ? undefined : focusableToothId}
+						disabled={isDisabled}
+						isSelected={isSelected}
+						conditionByTooth={conditionByTooth}
+						onSelect={toggle}
+						onKeyDown={handleKeyDown}
+						{...tooltipHandlers.tooth}
+						onFocusTooth={handleFocus}
+					/>
+				</g>
 
 				<StateMarkLayer marks={stateMarks} />
 
