@@ -63,10 +63,7 @@
 		},
 		"./style.css": "./dist/index.css"
 	},
-	"sideEffects": [
-		"*.css",
-		"**/*.css"
-	],
+	"sideEffects": ["*.css", "**/*.css"],
 	"files": [
 		"dist",
 		"LICENSE",
