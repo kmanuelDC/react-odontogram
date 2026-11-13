@@ -239,7 +239,7 @@ describe("findings in the surface tooltip", () => {
 		);
 		expect(tooltip).toHaveTextContent("Selected: Yes");
 		// Tooth-level findings are left out.
-		expect(tooltip).not.toHaveTextContent("Tratamiento pulpar");
+		expect(tooltip).not.toHaveTextContent("Tratamiento de conductos");
 	});
 
 	it("passes the surface findings to renderTooltip", () => {
@@ -278,9 +278,9 @@ describe("per-surface summary in the tooth tooltip", () => {
 			(line) => line.textContent,
 		);
 
-		expect(tooltip).toHaveTextContent("Findings: Tratamiento pulpar");
+		expect(tooltip).toHaveTextContent("Findings: Tratamiento de conductos");
 		expect(tooltip).not.toHaveTextContent(
-			"Findings: Tratamiento pulpar, Lesión",
+			"Findings: Tratamiento de conductos, Lesión",
 		);
 		expect(tooltip).toHaveTextContent("Surfaces:");
 		expect(lines).toEqual([
@@ -307,7 +307,7 @@ describe("per-surface summary in the tooth tooltip", () => {
 		});
 		fireEvent.mouseEnter(toothById(container, "16"));
 		expect(screen.getByRole("tooltip").textContent).toBe(
-			"MO|Tratamiento pulpar",
+			"MO|Tratamiento de conductos",
 		);
 	});
 

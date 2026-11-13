@@ -1,4 +1,5 @@
 import type {
+	Box,
 	FindingPrimitive,
 	RenderedFinding,
 } from "@kmanueldc/odontogram-core";
@@ -71,6 +72,8 @@ export function findingClassName({
 
 export interface FindingLayerProps {
 	findings: readonly RenderedFinding[];
+	/** Empty abbreviation boxes, drawn under the findings. */
+	boxes?: readonly Box[];
 }
 
 /**
@@ -78,14 +81,24 @@ export interface FindingLayerProps {
  * in each tooth's accessible name. Blue for good state or completed
  * treatment, red for bad state or pending; `color` overrides both.
  */
-export function FindingLayer({ findings }: FindingLayerProps) {
-	if (findings.length === 0) {
+export function FindingLayer({ findings, boxes = [] }: FindingLayerProps) {
+	if (findings.length === 0 && boxes.length === 0) {
 		return null;
 	}
 
 	return (
 		// biome-ignore lint/a11y/noAriaHiddenOnFocusable: the group has no tabIndex, so it is not focusable; the findings are in the teeth's accessible names.
 		<g className="odontogram__findings" aria-hidden="true">
+			{boxes.map(({ x, y, width, height }) => (
+				<rect
+					key={`${x} ${y}`}
+					className="odontogram-finding-box"
+					x={x}
+					y={y}
+					width={width}
+					height={height}
+				/>
+			))}
 			{findings.map((finding) => (
 				<g
 					key={finding.key}

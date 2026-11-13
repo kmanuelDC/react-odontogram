@@ -8,8 +8,13 @@ import type { FindingCatalog } from "../types/findings";
  * Surface findings are drawn on the surface diagram, so they need
  * `showSurfaces`. Sealants and restoration materials, which the standard
  * writes as abbreviations inside the surface, are not included. Symbols are adapted to
- * the occlusal view of this chart, which has no roots: root findings use
- * their abbreviation. Review codes, colors and abbreviations against the
+ * the occlusal view of this chart, which has no roots: the root zone is
+ * drawn on the vestibular side, past the surfaces. `fracture` and
+ * `root-remnant` take `location: "crown" | "root"`; `pulp-treatment` (TC/PC)
+ * draws its line there and `post-core` its post. `fusion` and `supernumerary`
+ * take two teeth; `fusion` and `gemination` circle the tooth numbers. With
+ * `showFindingBoxes`, abbreviations (and `boxText` or a finding's `label`)
+ * go in the boxes, following NTS N.° 188-MINSA/DGIESP-2022. Review codes, colors and abbreviations against the
  * official standard before clinical use, and extend or override entries as
  * needed: `{ ...ntsPeruFindingCatalog, fracture: { ... } }`.
  */
@@ -36,13 +41,19 @@ export const ntsPeruFindingCatalog = {
 	fracture: { name: "Fractura", symbol: { kind: "line" }, tone: "bad" },
 	crown: {
 		name: "Corona definitiva",
-		symbol: { kind: "circle" },
+		symbol: { kind: "square" },
 		tone: "good",
 	},
 	"temporary-crown": {
 		name: "Corona temporal",
-		symbol: { kind: "circle" },
+		symbol: { kind: "square" },
 		tone: "bad",
+		boxText: "CT",
+	},
+	"post-core": {
+		name: "Espigo-muñón",
+		symbol: { kind: "post-core" },
+		tone: "good",
 	},
 	extruded: {
 		name: "Diente extruido",
@@ -69,12 +80,29 @@ export const ntsPeruFindingCatalog = {
 		symbol: { kind: "zigzag" },
 		tone: "good",
 	},
-	supernumerary: {
-		name: "Supernumerario",
-		symbol: { kind: "encircled-text", text: "S" },
+	gemination: {
+		name: "Geminación",
+		symbol: { kind: "number-circle" },
 		tone: "good",
 	},
-	fusion: { name: "Fusión", symbol: { kind: "double-circle" }, tone: "good" },
+	pulpotomy: {
+		name: "Pulpotomía",
+		symbol: { kind: "pulp" },
+		tone: "good",
+		boxText: "PP",
+	},
+
+	// Between two teeth.
+	supernumerary: {
+		name: "Pieza dentaria supernumeraria",
+		symbol: { kind: "apical-text", text: "S" },
+		tone: "good",
+	},
+	fusion: {
+		name: "Fusión",
+		symbol: { kind: "fused-circles" },
+		tone: "good",
+	},
 	peg: {
 		name: "Diente en clavija",
 		symbol: { kind: "triangle" },
@@ -133,9 +161,10 @@ export const ntsPeruFindingCatalog = {
 		tone: "bad",
 	},
 	"pulp-treatment": {
-		name: "Tratamiento pulpar",
-		symbol: { kind: "text", text: "TC" },
+		name: "Tratamiento de conductos",
+		symbol: { kind: "root-line" },
 		tone: "good",
+		boxText: "TC",
 	},
 	"enamel-defect": {
 		name: "Defecto de desarrollo del esmalte",
@@ -143,7 +172,6 @@ export const ntsPeruFindingCatalog = {
 		tone: "bad",
 	},
 
-	// Between two teeth.
 	diastema: { name: "Diastema", symbol: { kind: "diastema" }, tone: "good" },
 	transposition: {
 		name: "Transposición",

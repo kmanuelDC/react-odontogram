@@ -4,11 +4,13 @@ import { ntsPeruFindingCatalog } from "../src/catalogs/nts-peru";
 import type { FindingCatalog, OdontogramFinding } from "../src/types/findings";
 import { getLayoutViewBox, getToothAnchors } from "../src/utils/anchors";
 import {
+	getFindingBoxes,
 	getFindingIcon,
 	getFindingScope,
 	layoutFindings,
 	resolveFindingTone,
 } from "../src/utils/findings";
+import { getToothNumberLabels } from "../src/utils/numbers";
 import { getSurfaceDiagrams } from "../src/utils/surfaces";
 import { getPathBox } from "../src/utils/svg-geometry";
 import { getToothFrames } from "../src/utils/tooth-frames";
@@ -136,7 +138,7 @@ describe("finding layout", () => {
 	it("places abbreviations on the vestibular side and stacks them", () => {
 		const frame = frames().frames.get("16")!;
 		const { findings } = layout([
-			{ code: "pulp-treatment", teeth: ["16"] },
+			{ code: "implant", teeth: ["16"] },
 			{ code: "mobility", teeth: ["16"] },
 		]);
 		const [first, second] = findings.map(
@@ -320,3 +322,222 @@ describe("surface findings", () => {
 		]);
 	});
 });
+
+describe("gemination/fusion, root location and finding boxes", () => {
+	const toothFrames = frames();
+	const anchorBox = (toothId: string) =>
+		getToothAnchors("permanent", "arch").find(
+			(anchor) => anchor.toothId === toothId,
+		)!.box;
+	const inside = (
+		{ x, y }: { x: number; y: number },
+		box: { x: number; y: number; width: number; height: number },
+	) =>
+		x >= box.x &&
+		x <= box.x + box.width &&
+		y >= box.y &&
+		y <= box.y + box.height;
+	const centerOf = (box: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}) => ({
+		x: box.x + box.width / 2,
+		y: box.y + box.height / 2,
+	});
+
+	it("draws gemination/fusion as two intersecting circles around two teeth", () => {
+		const { findings, issues } = layout([
+			{ code: "fusion", teeth: ["11", "12"] },
+		]);
+		const [a, b] = findings[0].primitives as {
+			cx: number;
+			cy: number;
+			r: number;
+		}[];
+
+		expect(issues).toEqual([]);
+		expect(findings[0].teeth).toEqual(["11", "12"]);
+		expect(Math.hypot(a.cx - b.cx, a.cy - b.cy)).toBeLessThan(a.r + b.r);
+		expect(layout([{ code: "fusion", teeth: ["11"] }]).issues).toHaveLength(1);
+	});
+
+	it("draws a root finding past the tooth and a crown one over it", () => {
+		const tooth = anchorBox("16");
+		const [root, crown] = layout([
+			{ code: "fracture", teeth: ["16"], location: "root" },
+			{ code: "root-remnant", teeth: ["16"], location: "crown" },
+		]).findings;
+
+		expect(root.location).toBe("root");
+		expect(inside(centerOf(root.box), tooth)).toBe(false);
+		expect(inside(centerOf(crown.box), tooth)).toBe(true);
+	});
+
+	it("writes abbreviations side by side in the tooth box, past the root zone", () => {
+		const boxes = getFindingBoxes(toothFrames);
+		const box = boxes.find(({ toothId }) => toothId === "21")!.box;
+		const { findings } = layoutFindings(
+			[
+				{ code: "implant", teeth: ["21"] },
+				{ code: "mobility", teeth: ["21"] },
+				{ code: "fracture", teeth: ["21"], location: "root" },
+			],
+			ntsPeruFindingCatalog,
+			toothFrames,
+			undefined,
+			{ boxes: true },
+		);
+		const texts = findings
+			.filter(({ code }) => code !== "fracture")
+			.map(({ primitives }) => primitives[0] as { x: number; y: number });
+		const fracture = findings.find(({ code }) => code === "fracture")!;
+		const tooth = centerOf(anchorBox("21"));
+		const distance = (p: { x: number; y: number }) =>
+			Math.hypot(p.x - tooth.x, p.y - tooth.y);
+
+		expect(boxes).toHaveLength(toothFrames.frames.size);
+		expect(texts.every((text) => inside(text, box))).toBe(true);
+		expect(texts[0].x).toBeLessThan(texts[1].x);
+		expect(distance(centerOf(fracture.box))).toBeLessThan(
+			distance(centerOf(box)),
+		);
+		expect(inside(centerOf(fracture.box), box)).toBe(false);
+	});
+});
+
+describe("NTS 188 symbols", () => {
+	const toothFrames = frames();
+	const anchor = (toothId: string) =>
+		getToothAnchors("permanent", "arch").find(
+			(item) => item.toothId === toothId,
+		)!;
+	const numbers = new Map(
+		getToothNumberLabels(
+			getToothAnchors("permanent", "arch"),
+			getLayoutViewBox("permanent", "arch"),
+			"arch",
+			"FDI",
+		).map(({ toothId, box }) => [toothId, box]),
+	);
+	const run = (findings: OdontogramFinding[], boxes = false) =>
+		layoutFindings(findings, ntsPeruFindingCatalog, toothFrames, undefined, {
+			boxes,
+			numbers,
+		});
+	const center = (box: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}) => ({
+		x: box.x + box.width / 2,
+		y: box.y + box.height / 2,
+	});
+
+	it("borders the crown with a square", () => {
+		const { findings } = run([{ code: "crown", teeth: ["16"] }]);
+		const drawn = getPathBox((findings[0].primitives[0] as { d: string }).d);
+		const tooth = anchor("16").box;
+
+		expect(drawn.width).toBeGreaterThan(tooth.width);
+		expect(drawn.height).toBeGreaterThan(tooth.height);
+	});
+
+	it("circles the tooth numbers for gemination and fusion", () => {
+		const { findings, issues } = run([
+			{ code: "gemination", teeth: ["21"] },
+			{ code: "fusion", teeth: ["11", "12"] },
+		]);
+		const [gemination, fusion] = findings;
+		const circle = gemination.primitives[0] as { cx: number; cy: number };
+		const [first, second] = (fusion.primitives as { d: string }[]).map(
+			({ d }) => getPathBox(d),
+		);
+		const overlap = (
+			p: { x: number; y: number; width: number; height: number },
+			q: typeof p,
+		) =>
+			p.x < q.x + q.width &&
+			q.x < p.x + p.width &&
+			p.y < q.y + q.height &&
+			q.y < p.y + p.height;
+
+		expect(issues).toEqual([]);
+		expect({ x: circle.cx, y: circle.cy }).toEqual(center(numbers.get("21")!));
+		expect(inside(center(numbers.get("11")!), first)).toBe(true);
+		expect(inside(center(numbers.get("12")!), second)).toBe(true);
+		expect(overlap(first, second)).toBe(true);
+	});
+
+	it("puts the supernumerary between the apices of two teeth", () => {
+		const { findings, issues } = run([
+			{ code: "supernumerary", teeth: ["11", "21"] },
+		]);
+		const text = findings[0].primitives.find(
+			(primitive) => primitive.type === "text",
+		) as { x: number; y: number; text: string };
+		const [a, b] = [anchor("11").center, anchor("21").center];
+
+		expect(issues).toEqual([]);
+		expect(text.text).toBe("S");
+		expect(text.x).toBeGreaterThan(Math.min(a.x, b.x));
+		expect(text.x).toBeLessThan(Math.max(a.x, b.x));
+		// Past the crowns, on the vestibular (upper) side.
+		expect(text.y).toBeLessThan(
+			Math.min(anchor("11").box.y, anchor("21").box.y),
+		);
+	});
+
+	it("draws the root canal line past the tooth and its sigla in the box", () => {
+		const box = getFindingBoxes(toothFrames).find(
+			({ toothId }) => toothId === "41",
+		)!.box;
+		const { findings } = run(
+			[{ code: "pulp-treatment", teeth: ["41"], label: "PC" }],
+			true,
+		);
+		const [line, text] = findings[0].primitives as unknown as [
+			{ d: string },
+			{ x: number; y: number; text: string },
+		];
+		const tooth = anchor("41").box;
+
+		expect(getPathBox(line.d).y).toBeGreaterThanOrEqual(
+			tooth.y + tooth.height - 0.01,
+		);
+		expect(text.text).toBe("PC");
+		expect(text.y).toBeCloseTo(box.y + box.height / 2);
+	});
+
+	it("fills the coronal pulp for a pulpotomy and writes PP in the box", () => {
+		const { findings } = run([{ code: "pulpotomy", teeth: ["36"] }], true);
+		const [pulp, text] = findings[0].primitives;
+
+		expect(pulp.type).toBe("area");
+		expect(text).toMatchObject({ type: "text", text: "PP" });
+	});
+
+	it("joins the post-core square to a line through the root zone", () => {
+		const { findings } = run([{ code: "post-core", teeth: ["21"] }]);
+		const [square, post] = findings[0].primitives as { d: string }[];
+		const tooth = anchor("21").box;
+
+		expect(inside(center(getPathBox(square.d)), tooth)).toBe(true);
+		// The post reaches past the top (vestibular) edge of an upper tooth.
+		expect(getPathBox(post.d).y).toBeLessThan(tooth.y);
+	});
+});
+
+function inside(
+	{ x, y }: { x: number; y: number },
+	box: { x: number; y: number; width: number; height: number },
+) {
+	return (
+		x >= box.x &&
+		x <= box.x + box.width &&
+		y >= box.y &&
+		y <= box.y + box.height
+	);
+}

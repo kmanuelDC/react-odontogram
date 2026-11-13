@@ -1,7 +1,7 @@
 {
 	"name": "@kmanueldc/react-odontogram",
 	"description": "Clinical dental chart for React: tooth selection, FDI notation, primary/mixed dentition and clinical findings. Fork of react-odontogram by Pratik Sharma.",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"author": "Manuel Díaz Calua",
 	"contributors": [
 		"Pratik Sharma <sharma.pratik2016@gmail.com> (https://github.com/biomathcode)"

@@ -19,6 +19,34 @@ IDs, and the hidden form input keeps its format. Deprecated props log one
 warning in development (never in production builds). They will be removed
 in 1.0.
 
+## 0.1.1 → 0.2.0: NTS N.° 188 drawings
+
+`ntsPeruFindingCatalog` now draws as NTS N.° 188-MINSA/DGIESP-2022 does.
+Codes stay the same; these change how they are recorded or drawn:
+
+| Code | Before | Now |
+| --- | --- | --- |
+| `fusion` | Two circles over one tooth | Two intersecting circles around the **numbers of two teeth** (around the teeth without `showNumbers`). |
+| `supernumerary` | `S` in a circle on one tooth | `S` in a circle **between the apices of two teeth**. |
+| `crown`, `temporary-crown` | Circle | Square bordering the crown; `temporary-crown` writes `CT` in the box. |
+| `pulp-treatment` | `TC` text | "Tratamiento de conductos": a line in the root zone, `TC` (or the `label`, e.g. `PC`) in the box. |
+| — | — | New `gemination`, `post-core`, `pulpotomy` (PP). |
+
+A single-tooth `fusion` or `supernumerary` is no longer drawn and is reported
+in the finding issues (development warning). List both teeth:
+
+```diff
+- { code: "fusion", teeth: ["11"] }
++ { code: "fusion", teeth: ["11", "12"] }
+- { code: "supernumerary", teeth: ["11"] }
++ { code: "supernumerary", teeth: ["11", "21"] }
+- { code: "pulp-treatment", teeth: ["64"], label: "PP" }
++ { code: "pulpotomy", teeth: ["64"] }
+```
+
+To keep an old drawing, override the entry, e.g.
+`{ ...ntsPeruFindingCatalog, fusion: { name: "Fusión", symbol: { kind: "double-circle" }, tone: "good" } }`.
+
 ## 0.1.0 → 0.1.1: chart roles
 
 Only queries by role change. The root `div.Odontogram` is now always

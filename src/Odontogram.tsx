@@ -294,6 +294,7 @@ export const Odontogram: FC<OdontogramProps> = ({
 	toothStates,
 	findings,
 	findingCatalog = ntsPeruFindingCatalog,
+	showFindingBoxes = false,
 	showSurfaces = false,
 	showSurfaceLetters = false,
 	surfaceShape = "square",
@@ -390,6 +391,7 @@ export const Odontogram: FC<OdontogramProps> = ({
 		legendStates,
 		surfaceDiagrams,
 		renderedFindings,
+		findingBoxes,
 		findingIssues,
 		findingsByTooth,
 	} = useOdontogram({
@@ -406,6 +408,7 @@ export const Odontogram: FC<OdontogramProps> = ({
 		surfaceShape,
 		findings: fdiFindings,
 		findingCatalog,
+		showFindingBoxes,
 	});
 	const { descriptionOf, legendFindings, tooltipFindingsOf } = useChartFindings(
 		{
@@ -689,7 +692,7 @@ export const Odontogram: FC<OdontogramProps> = ({
 					{...tooltipHandlers.surface}
 				/>
 
-				<FindingLayer findings={renderedFindings} />
+				<FindingLayer findings={renderedFindings} boxes={findingBoxes} />
 
 				<SurfaceLetters
 					show={showSurfaceLetters}

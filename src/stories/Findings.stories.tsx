@@ -16,8 +16,9 @@ const toothCodes = [
 	"rotated",
 	"migrated",
 	"erupting",
-	"supernumerary",
-	"fusion",
+	"gemination",
+	"post-core",
+	"pulpotomy",
 	"peg",
 	"implant",
 	"root-remnant",
@@ -81,6 +82,8 @@ const everyToothFinding: OdontogramFinding[] = toothCodes.map(
 const groupFindings: OdontogramFinding[] = [
 	{ code: "diastema", teeth: ["11", "21"] },
 	{ code: "transposition", teeth: ["13", "14"] },
+	{ code: "fusion", teeth: ["22", "23"] },
+	{ code: "supernumerary", teeth: ["31", "32"] },
 	{ code: "fixed-prosthesis", teeth: ["24", "26"] },
 	{ code: "removable-prosthesis", teeth: ["34", "37"] },
 	{ code: "fixed-orthodontic-appliance", teeth: ["43", "33"] },
@@ -150,6 +153,31 @@ export const Arch: Story = {
 			{ code: "fixed-prosthesis", teeth: ["44", "46"] },
 			{ code: "implant", teeth: ["26"] },
 			{ code: "pulp-treatment", teeth: ["11"] },
+		],
+	},
+};
+
+/** NTS boxes for abbreviations, and crown or root placement. */
+export const BoxesAndRoots: Story = {
+	args: {
+		showSurfaces: true,
+		showNumbers: true,
+		showFindingBoxes: true,
+		findings: [
+			{ code: "pulp-treatment", teeth: ["11"] },
+			{ code: "mobility", teeth: ["11"] },
+			{ code: "implant", teeth: ["26"] },
+			{ code: "fracture", teeth: ["16"], location: "root" },
+			{ code: "fracture", teeth: ["21"], location: "crown" },
+			{ code: "root-remnant", teeth: ["36"], location: "root" },
+			{ code: "pulp-treatment", teeth: ["46"], location: "root" },
+			{ code: "fusion", teeth: ["31", "32"] },
+			{ code: "gemination", teeth: ["22"] },
+			{ code: "crown", teeth: ["17"], label: "CMC" },
+			{ code: "temporary-crown", teeth: ["27"] },
+			{ code: "post-core", teeth: ["14"] },
+			{ code: "pulpotomy", teeth: ["37"], tone: "bad" },
+			{ code: "supernumerary", teeth: ["43", "44"] },
 		],
 	},
 };

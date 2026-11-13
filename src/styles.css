@@ -382,6 +382,17 @@
 	stroke-dasharray: var(--odontogram-finding-planned-dasharray, 2 1.5);
 }
 
+/* Abbreviation boxes of `showFindingBoxes`. */
+.Odontogram .odontogram-finding-box {
+	fill: none;
+	stroke: var(
+		--odontogram-finding-box-color,
+		var(--odontogram-stroke-color, var(--base-blue))
+	);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
 :is(.Odontogram, .odontogram-surface-guide) .odontogram-finding__text {
 	fill: currentColor;
 	font-family: inherit;
@@ -760,4 +771,49 @@
 /* The legend follows the theme's text color. */
 .Odontogram.dark-theme .odontogram-condition-labels {
 	color: #e4e6ef;
+}
+
+/*
+ * Printing (NTS N.° 188, 5.17): the chart in black on white, also from the
+ * dark theme; findings in blue and red, and no selection. Surface and finding
+ * colors set by the app still win.
+ */
+@media print {
+	.Odontogram svg,
+	.Odontogram.dark-theme svg {
+		--dark-blue: #000;
+		--base-blue: #000;
+		--light-blue: transparent;
+		--odontogram-stroke-color: #000;
+		--odontogram-accent-color: #000;
+		--odontogram-selected-color: transparent;
+		--odontogram-number-color: #000;
+		--odontogram-surface-stroke-color: #000;
+		--odontogram-finding-box-color: #000;
+		background-color: #fff;
+		color: #000;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.Odontogram svg path.odontogram-surface,
+	.Odontogram.dark-theme svg path.odontogram-surface {
+		fill: var(--odontogram-surface-fill, #fff);
+	}
+
+	.Odontogram svg .odontogram__surface-letter,
+	.Odontogram.dark-theme svg .odontogram__surface-letter {
+		fill: var(--odontogram-surface-letter-color, #000);
+		stroke: var(--odontogram-surface-fill, #fff);
+	}
+
+	.Odontogram .odontogram-finding--good,
+	.Odontogram.dark-theme .odontogram-finding--good {
+		color: var(--odontogram-finding-good-color, #1d4ed8);
+	}
+
+	.Odontogram .odontogram-finding--bad,
+	.Odontogram.dark-theme .odontogram-finding--bad {
+		color: var(--odontogram-finding-bad-color, #dc2626);
+	}
 }

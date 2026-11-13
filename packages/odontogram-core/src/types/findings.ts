@@ -22,6 +22,14 @@ export const findingStatuses: readonly FindingStatus[] = [
 	"done",
 ];
 
+/**
+ * Part of the tooth a single-tooth finding is placed on: `crown` draws it
+ * over the tooth; `root` in the root zone, on the vestibular side past the
+ * tooth, its surface diagram and any prosthesis line (this occlusal chart
+ * has no roots).
+ */
+export type FindingLocation = "crown" | "root";
+
 /** Direction of a finding along the arch. */
 export type FindingDirection = "mesial" | "distal";
 
@@ -29,9 +37,11 @@ export type FindingDirection = "mesial" | "distal";
  * How a finding is drawn. The kind also fixes how many teeth it uses:
  * - surfaces of the surface diagram, per listed tooth: `fill`, `outline`;
  * - single tooth, one symbol per listed tooth: `line`, `cross`, `circle`,
- *   `double-circle`, `triangle`, `arrow`, `curved-arrow`, `zigzag`, `text`,
+ *   `square`, `double-circle`, `triangle`, `arrow`, `curved-arrow`, `zigzag`,
+ *   `pulp`, `root-line`, `post-core`, `number-circle`, `text`,
  *   `encircled-text`;
- * - between two teeth: `diastema`, `transposition`;
+ * - between two teeth: `diastema`, `transposition`, `fused-circles`,
+ *   `apical-text`;
  * - a range of teeth of one arch, from the first to the last listed tooth:
  *   `bridge`, `double-line`, `brackets`, `zigzag-line`, `center-line`.
  */
@@ -44,9 +54,22 @@ export type FindingSymbol =
 	| { kind: "line" }
 	/** An "X" across the tooth, e.g. an extraction. */
 	| { kind: "cross" }
-	/** A circle around the tooth, e.g. a crown. */
+	/** A circle around the tooth. */
 	| { kind: "circle" }
-	/** Two overlapping circles, e.g. fusion. */
+	/** A square bordering the crown, e.g. a crown (NTS 188). */
+	| { kind: "square" }
+	/** The coronal pulp filled in, e.g. a pulpotomy. */
+	| { kind: "pulp" }
+	/** A line along the root zone, e.g. a root canal treatment. */
+	| { kind: "root-line" }
+	/** A square in the crown joined to a line along the root zone: a post and core. */
+	| { kind: "post-core" }
+	/**
+	 * A circle around the tooth number, e.g. gemination; around the tooth when
+	 * numbers are not shown.
+	 */
+	| { kind: "number-circle" }
+	/** Two overlapping circles over one tooth. */
 	| { kind: "double-circle" }
 	/** A triangle over the tooth, e.g. a peg-shaped tooth. */
 	| { kind: "triangle" }
@@ -71,6 +94,13 @@ export type FindingSymbol =
 	| { kind: "diastema" }
 	/** Crossed arrows between two teeth. */
 	| { kind: "transposition" }
+	/**
+	 * Two intersecting circles around the numbers of two teeth (around the
+	 * teeth when numbers are not shown), e.g. fusion.
+	 */
+	| { kind: "fused-circles" }
+	/** An encircled abbreviation between the apices of two teeth, e.g. `S`. */
+	| { kind: "apical-text"; text: string }
 	/** A line with end caps along a range of teeth, e.g. a fixed prosthesis. */
 	| { kind: "bridge" }
 	/** Two parallel lines along a range of teeth, e.g. a removable prosthesis. */
@@ -93,6 +123,11 @@ export interface FindingDefinition {
 	symbol: FindingSymbol;
 	/** Color used when a finding sets neither `tone` nor `color`. */
 	tone: FindingTone;
+	/**
+	 * Abbreviation written in the tooth's box (`showFindingBoxes`) next to a
+	 * drawn single-tooth symbol, e.g. `CT`; a finding's `label` overrides it.
+	 */
+	boxText?: string;
 }
 
 /** Finding definitions keyed by code. */
@@ -123,8 +158,18 @@ export interface OdontogramFinding {
 	tone?: FindingTone;
 	/** Any CSS color; overrides `tone`. */
 	color?: string;
-	/** Overrides the abbreviation of text symbols, e.g. `M2` for mobility. */
+	/**
+	 * Overrides the abbreviation of text symbols, e.g. `M2` for mobility. With
+	 * finding boxes, it is also the abbreviation written in the box for drawn
+	 * symbols, e.g. `CM` for a crown.
+	 */
 	label?: string;
+	/**
+	 * Crown or root placement of a single-tooth finding, e.g. a root fracture.
+	 * Without it, abbreviations go on the vestibular side (in the finding
+	 * boxes, when shown) and other symbols over the tooth. Other scopes ignore it.
+	 */
+	location?: FindingLocation;
 	/** Direction for arrows whose catalog direction is `auto`, e.g. migration. */
 	direction?: FindingDirection;
 }

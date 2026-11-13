@@ -18,6 +18,7 @@ import {
 	toothStates as allToothStates,
 	boxFromPoints,
 	composeQuadrants,
+	getFindingBoxes,
 	getLayoutViewBox,
 	getSurfaceDiagrams,
 	getToothAnchors,
@@ -58,6 +59,8 @@ export interface OdontogramModelOptions {
 	findings?: readonly OdontogramFinding[];
 	/** `ntsPeruFindingCatalog` by default. */
 	findingCatalog?: FindingCatalog;
+	/** Draws a box per tooth for its abbreviations and fits the viewBox to them. */
+	showFindingBoxes?: boolean;
 }
 
 /** A tooth state other than `present`. */
@@ -76,6 +79,8 @@ export interface OdontogramModel {
 	surfaceDiagrams: SurfaceDiagram[];
 	/** Findings ready to draw, in list order. */
 	renderedFindings: RenderedFinding[];
+	/** Abbreviation boxes of the drawn teeth; empty without `showFindingBoxes`. */
+	findingBoxes: Box[];
 	/** Why some findings could not be drawn. */
 	findingIssues: string[];
 	/** Rendered findings covering each tooth. */
@@ -196,13 +201,18 @@ function layoutChartFindings(
 	catalog: FindingCatalog,
 	frames: ToothFrames,
 	surfaceLayout: SurfaceDiagramLayout | undefined,
+	boxes: boolean,
+	numberLabels: readonly ToothNumberLabel[],
 ) {
 	const findingsByTooth = new Map<string, RenderedFinding[]>();
 	if (!findings || findings.length === 0) {
 		return { renderedFindings: [], findingIssues: [], findingsByTooth };
 	}
 
-	const layout = layoutFindings(findings, catalog, frames, surfaceLayout);
+	const layout = layoutFindings(findings, catalog, frames, surfaceLayout, {
+		boxes,
+		numbers: new Map(numberLabels.map(({ toothId, box }) => [toothId, box])),
+	});
 	for (const finding of layout.findings) {
 		for (const toothId of finding.teeth) {
 			findingsByTooth.set(toothId, [
@@ -244,6 +254,7 @@ export function buildOdontogramModel({
 	surfaceShape,
 	findings,
 	findingCatalog = ntsPeruFindingCatalog,
+	showFindingBoxes = false,
 }: OdontogramModelOptions): OdontogramModel {
 	const listed = teeth ? new Set(teeth) : undefined;
 	const quadrants = composeQuadrants(dentition, layout)
@@ -291,10 +302,25 @@ export function buildOdontogramModel({
 		: undefined;
 	const surfaceDiagrams = surfaceLayout?.diagrams ?? [];
 	const { renderedFindings, findingIssues, findingsByTooth } =
-		layoutChartFindings(findings, findingCatalog, frames, surfaceLayout);
+		layoutChartFindings(
+			findings,
+			findingCatalog,
+			frames,
+			surfaceLayout,
+			showFindingBoxes,
+			numberLabels,
+		);
+	const findingBoxes = showFindingBoxes
+		? getFindingBoxes(frames, surfaceLayout?.reserved).map(({ box }) => box)
+		: [];
 
 	let viewBox: string;
-	if (showNumbers || showSurfaces || renderedFindings.length > 0) {
+	if (
+		showNumbers ||
+		showSurfaces ||
+		renderedFindings.length > 0 ||
+		findingBoxes.length > 0
+	) {
 		viewBox = getContentViewBox(
 			chart,
 			anchors,
@@ -302,6 +328,7 @@ export function buildOdontogramModel({
 				...numberLabels.map(({ box }) => box),
 				...surfaceDiagrams.map(({ box }) => box),
 				...renderedFindings.map(({ box }) => box),
+				...findingBoxes,
 			],
 			frames.fontSize || 4,
 			showHalf,
@@ -331,6 +358,7 @@ export function buildOdontogramModel({
 		numberLabels,
 		surfaceDiagrams,
 		renderedFindings,
+		findingBoxes,
 		findingIssues,
 		findingsByTooth,
 		conditionByTooth,
@@ -354,6 +382,7 @@ export function useOdontogram({
 	surfaceShape,
 	findings,
 	findingCatalog,
+	showFindingBoxes,
 }: OdontogramModelOptions): OdontogramModel {
 	return useMemo(
 		() =>
@@ -371,6 +400,7 @@ export function useOdontogram({
 				surfaceShape,
 				findings,
 				findingCatalog,
+				showFindingBoxes,
 			}),
 		[
 			dentition,
@@ -386,6 +416,7 @@ export function useOdontogram({
 			surfaceShape,
 			findings,
 			findingCatalog,
+			showFindingBoxes,
 		],
 	);
 }

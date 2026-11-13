@@ -1,4 +1,4 @@
-import type { FindingStatus } from "./findings";
+import type { FindingLocation, FindingStatus } from "./findings";
 import type { ToothShape, ToothType } from "./geometry";
 import type { ToothSurfaceName } from "./surfaces";
 
@@ -94,6 +94,8 @@ export interface OdontogramLabels {
 	findings: string;
 	/** Finding statuses, shown after planned and done findings. */
 	findingStatuses: Record<FindingStatus, string>;
+	/** Where a finding is placed on the tooth, when the finding sets it. */
+	findingLocations: Record<FindingLocation, string>;
 	/** Accessible name of the surface diagrams layer. */
 	surfaces: string;
 	/** Prefix of the surface line in the tooltip of a surface. */
@@ -140,6 +142,7 @@ export type OdontogramLabelsInput = Partial<
 		| "surfaceLetters"
 		| "surfaceDescriptions"
 		| "findingStatuses"
+		| "findingLocations"
 		| "inspector"
 	> & {
 		chartTitles: Partial<OdontogramLabels["chartTitles"]>;
@@ -148,6 +151,7 @@ export type OdontogramLabelsInput = Partial<
 		surfaceLetters: Partial<OdontogramLabels["surfaceLetters"]>;
 		surfaceDescriptions: Partial<OdontogramLabels["surfaceDescriptions"]>;
 		findingStatuses: Partial<OdontogramLabels["findingStatuses"]>;
+		findingLocations: Partial<OdontogramLabels["findingLocations"]>;
 		inspector: Partial<OdontogramLabels["inspector"]>;
 	}
 >;

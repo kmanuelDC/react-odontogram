@@ -146,7 +146,7 @@ describe("ToothInspector", () => {
 			...container.querySelectorAll("[data-inspector-tooth-finding]"),
 		].map((row) => row.textContent);
 		expect(tooth).toEqual([
-			expect.stringContaining("Tratamiento pulpar"),
+			expect.stringContaining("Tratamiento de conductos"),
 			expect.stringContaining("Prótesis fija"),
 		]);
 	});
@@ -392,7 +392,7 @@ describe("ToothInspector (React)", () => {
 			}),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: "Remove: Tratamiento pulpar" }),
+			screen.getByRole("button", { name: "Remove: Tratamiento de conductos" }),
 		).toBeInTheDocument();
 	});
 });

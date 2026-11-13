@@ -571,7 +571,26 @@ either format).
   (`good`, `bad`) override the catalog; `color` takes any CSS color. Planned
   findings are dashed. Several findings on one surface share it in strips.
 * **Options.** `label` changes an abbreviation (`M2`), `direction`
-  (`mesial`/`distal`) points migration arrows.
+  (`mesial`/`distal`) points migration arrows. `location` (`crown`/`root`)
+  places a single-tooth finding over the tooth or in its root zone (e.g. a
+  root fracture, `RR`, `TC`); the chart is an occlusal view, so the root zone
+  is drawn on the vestibular side, past the surfaces and prosthesis lines.
+* **Boxes.** `showFindingBoxes` draws a box per tooth on its vestibular
+  side (above the upper row, below the lower one), as on the printed NTS
+  chart, and writes the tooth's abbreviations in it, side by side, each in
+  its finding's color: text symbols without `location`, the catalog
+  `boxText` (`CT`, `TC`, `PP`) and a finding's `label` (`CM`, `PC`…). Style
+  them with `.odontogram-finding-box` or `--odontogram-finding-box-color`.
+* **Printing.** Printed charts are black on white, with findings in blue and
+  red (NTS N.° 188, 5.17). For crowns of at least 0.5 cm², with numbers,
+  surfaces and boxes shown, print the chart at least this wide (the surface
+  square is the crown of the norm's drawing; the tooth figure needs less):
+
+  | Dentition | `arch` | `horizontal` |
+  | --- | --- | --- |
+  | permanent | 14 cm | 25 cm |
+  | primary | 18 cm | 19 cm |
+  | mixed | 16 cm | 25.5 cm |
 * **Text.** Findings are added to each tooth's accessible name and tooltip
   (whole-tooth findings, then a line per surface); `renderTooltip` receives
   `findings` and `surfaceSummary`; `showLabels` lists each one in the legend
@@ -580,11 +599,12 @@ either format).
 
 ### NTS Peru catalog
 
-`ntsPeruFindingCatalog` (the default `findingCatalog`) has 35 codes of the
+`ntsPeruFindingCatalog` (the default `findingCatalog`) has 38 codes of the
 Peruvian technical norm for the odontogram: `caries`, `restoration`,
 `temporary-restoration`, `extraction`, `fracture`, `crown`,
 `temporary-crown`, `extruded`, `intruded`, `rotated`, `migrated`,
-`erupting`, `supernumerary`, `fusion`, `peg`, `implant`, `root-remnant`,
+`erupting`, `supernumerary` (two teeth), `fusion` (two teeth), `gemination`,
+`post-core`, `pulpotomy`, `peg`, `implant`, `root-remnant`,
 `mobility`, `discolored`, `ectopic`, `impacted`, `semi-impacted`,
 `macrodontia`, `microdontia`, `worn`, `pulp-treatment`, `enamel-defect`,
 `diastema`, `transposition`, `fixed-prosthesis`, `removable-prosthesis`,
@@ -607,8 +627,9 @@ const catalog = {
 
 A `FindingCatalog` maps codes to `{ name, symbol, tone }`. Symbols:
 `fill`, `outline`, `line`, `cross`, `circle`, `double-circle`, `triangle`,
-`arrow`, `curved-arrow`, `zigzag`, `text`, `encircled-text`, `diastema`,
-`transposition`, `bridge`, `double-line`, `brackets`, `zigzag-line` and
+`arrow`, `curved-arrow`, `zigzag`, `square`, `pulp`, `root-line`,
+`post-core`, `number-circle`, `text`, `encircled-text`, `diastema`,
+`transposition`, `fused-circles`, `apical-text`, `bridge`, `double-line`, `brackets`, `zigzag-line` and
 `center-line`. `getFindingScope(symbol)` tells where each is drawn.
 
 ---

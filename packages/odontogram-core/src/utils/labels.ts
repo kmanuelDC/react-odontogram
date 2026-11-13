@@ -32,6 +32,7 @@ export const defaultOdontogramLabels: Readonly<OdontogramLabels> = {
 		planned: "Planned",
 		done: "Done",
 	},
+	findingLocations: { crown: "Crown", root: "Root" },
 	surfaces: "Tooth surfaces",
 	surface: "Surface",
 	surfaceSummary: "Surfaces",
@@ -111,6 +112,10 @@ export function resolveOdontogramLabels(
 		findingStatuses: {
 			...defaultOdontogramLabels.findingStatuses,
 			...labels?.findingStatuses,
+		},
+		findingLocations: {
+			...defaultOdontogramLabels.findingLocations,
+			...labels?.findingLocations,
 		},
 		inspector: { ...defaultOdontogramLabels.inspector, ...labels?.inspector },
 	};

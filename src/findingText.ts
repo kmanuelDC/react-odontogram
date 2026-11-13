@@ -4,6 +4,7 @@
  */
 import {
 	type FindingCatalog,
+	type FindingLocation,
 	type FindingPrimitive,
 	type FindingStatus,
 	type FindingTone,
@@ -19,15 +20,21 @@ import {
 } from "@kmanueldc/odontogram-core";
 import type { TooltipSurfaceSummary } from "./type";
 
-/** A name followed by its status when not `existing`: "Crown (Planned)". */
+/**
+ * A name followed by its location, if any, and its status when not
+ * `existing`: "Fracture (Root, Planned)".
+ */
 function withStatus(
 	name: string,
 	status: FindingStatus,
 	labels: OdontogramLabels,
+	location?: FindingLocation,
 ): string {
-	return status === "existing"
-		? name
-		: `${name} (${labels.findingStatuses[status]})`;
+	const details = [
+		...(location ? [labels.findingLocations[location]] : []),
+		...(status === "existing" ? [] : [labels.findingStatuses[status]]),
+	];
+	return details.length > 0 ? `${name} (${details.join(", ")})` : name;
 }
 
 /** Name of a recorded finding, with its status. */
@@ -39,6 +46,7 @@ function describeEntry(
 		definition?.name ?? finding.code,
 		finding.status ?? "existing",
 		labels,
+		finding.location,
 	);
 }
 
@@ -52,11 +60,12 @@ export function getFindingNames(
 	findingsByTooth: ReadonlyMap<string, readonly RenderedFinding[]>,
 	labels: OdontogramLabels,
 ): string[] {
-	const describe = ({ name, surfaces, status }: RenderedFinding) => {
+	const describe = ({ name, surfaces, status, location }: RenderedFinding) => {
 		const details = [
 			...(surfaces ?? []).map(
 				(surface) => labels.surfaceNames[getSurfaceName(surface, toothId)],
 			),
+			...(location ? [labels.findingLocations[location]] : []),
 			...(status === "existing" ? [] : [labels.findingStatuses[status]]),
 		];
 		return details.length > 0 ? `${name} (${details.join(", ")})` : name;

@@ -1,6 +1,7 @@
 import type {
 	FindingCatalog,
 	FindingDefinition,
+	FindingLocation,
 	FindingScope,
 	FindingStatus,
 	FindingSymbol,
@@ -54,6 +55,8 @@ export interface RenderedFinding {
 	teeth: string[];
 	/** Surfaces drawn by a surface finding, in `toothSurfaces` order. */
 	surfaces?: ToothSurface[];
+	/** Crown or root placement of a single-tooth finding, when set. */
+	location?: FindingLocation;
 	strokeWidth: number;
 	primitives: FindingPrimitive[];
 	/** Area covered by the drawing. */
@@ -67,7 +70,14 @@ export interface FindingLayout {
 }
 
 const surfaceKinds = new Set<FindingSymbolKind>(["fill", "outline"]);
-const betweenKinds = new Set<FindingSymbolKind>(["diastema", "transposition"]);
+const betweenKinds = new Set<FindingSymbolKind>([
+	"diastema",
+	"transposition",
+	"fused-circles",
+	"apical-text",
+]);
+/** Single-tooth symbols drawn in the root zone, at least in part. */
+const rootKinds = new Set<FindingSymbolKind>(["root-line", "post-core"]);
 const spanKinds = new Set<FindingSymbolKind>([
 	"bridge",
 	"double-line",
@@ -107,6 +117,9 @@ const round = (value: number) => Math.round(value * 100) / 100;
 const point = ({ x, y }: Point) => `${round(x)} ${round(y)}`;
 const polyline = (points: readonly Point[]) =>
 	points.map((p, index) => `${index ? "L" : "M"}${point(p)}`).join(" ");
+/** Closed rectangle centered at `c`. */
+const rectangle = (c: Point, width: number, height: number) =>
+	`M${point({ x: c.x - width / 2, y: c.y - height / 2 })} h${round(width)} v${round(height)} h${round(-width)} Z`;
 
 function arrowHead(tip: Point, direction: Point, length: number): string {
 	const back = { x: -direction.x, y: -direction.y };
@@ -168,8 +181,13 @@ function toothSymbol(
 	symbol: FindingSymbol,
 	frame: ToothFrame,
 	finding: Pick<OdontogramFinding, "direction">,
+	root?: ToothFrame,
 ): FindingPrimitive[] {
-	const { box, center, size, occlusal, mesial } = frame;
+	const { box, center, size, occlusal, mesial, outer } = frame;
+	// Far end of the root: the end of the root zone, else the tooth edge.
+	const apex = root
+		? add(root.center, outer, root.size / 2)
+		: add(center, outer, halfExtent(box.width, box.height, outer));
 	const length = size * 0.7;
 	const head = size * 0.18;
 
@@ -205,7 +223,39 @@ function toothSymbol(
 				},
 			];
 		}
+		case "square": {
+			const pad = size * 0.08;
+			return [
+				{
+					type: "path",
+					d: rectangle(center, box.width + pad * 2, box.height + pad * 2),
+				},
+			];
+		}
+		case "pulp":
+			return [{ type: "area", d: rectangle(center, size * 0.32, size * 0.32) }];
+		case "root-line":
+			return [
+				{
+					type: "path",
+					d: polyline([
+						root ? add(root.center, outer, -root.size / 2) : center,
+						apex,
+					]),
+				},
+			];
+		case "post-core": {
+			const side = size * 0.3;
+			return [
+				{ type: "path", d: rectangle(center, side, side) },
+				{
+					type: "path",
+					d: polyline([add(center, outer, side / 2), apex]),
+				},
+			];
+		}
 		case "circle":
+		case "number-circle":
 			return [
 				{
 					type: "circle",
@@ -329,6 +379,22 @@ function betweenSymbol(
 	const side = perpendicular(along);
 	const gap = size * 0.12;
 	const height = size * 0.35;
+
+	if (symbol.kind === "apical-text") {
+		return textSymbol(symbol.text, middle, size * 0.45, true);
+	}
+
+	if (symbol.kind === "fused-circles") {
+		// Each circle reaches past the midpoint, so the two always intersect.
+		const half =
+			Math.hypot(b.center.x - a.center.x, b.center.y - a.center.y) / 2;
+		return [a, b].map(({ center, box }) => ({
+			type: "circle" as const,
+			cx: center.x,
+			cy: center.y,
+			r: Math.max(toothCircleRadius(box), half * 1.2),
+		}));
+	}
 
 	if (symbol.kind === "diastema") {
 		// ")(": each arc bulges toward the space between the teeth.
@@ -516,20 +582,131 @@ function primitivesBox(
 	};
 }
 
+const boxCenter = ({ x, y, width, height }: Box): Point => ({
+	x: x + width / 2,
+	y: y + height / 2,
+});
+
+/**
+ * Two ellipses, each enclosing the number of one tooth and stretched toward
+ * the other number so that they cross midway, however far apart the numbers.
+ */
+function fusedNumbers(a: Box, b: Box): FindingPrimitive[] {
+	const [ca, cb] = [boxCenter(a), boxCenter(b)];
+	const r =
+		Math.max(...[a, b].map(({ width, height }) => Math.hypot(width, height))) *
+		0.55;
+	const half = Math.hypot(cb.x - ca.x, cb.y - ca.y) / 2;
+	const u = normalize({ x: cb.x - ca.x, y: cb.y - ca.y });
+	// Semi-axis along the numbers: from just behind a number to past the midpoint.
+	const rx = Math.max(r, (half + r * 1.3) / 2);
+	const ry = r * 1.2;
+	const angle = round((Math.atan2(u.y, u.x) * 180) / Math.PI);
+
+	return (
+		[
+			[ca, 1],
+			[cb, -1],
+		] as const
+	).map(([c, sign]) => {
+		const center = add(c, u, sign * (rx - r));
+		const [from, to] = [add(center, u, -rx), add(center, u, rx)];
+		const arc = `A${round(rx)} ${round(ry)} ${angle} 1 0`;
+		return {
+			type: "path" as const,
+			d: `M${point(from)} ${arc} ${point(to)} ${arc} ${point(from)}`,
+		};
+	});
+}
+
+/** Length of the root zone, along the vestibular direction. */
+const rootLength = (fontSize: number) => fontSize * 1.8;
+
+/** Distance where the root zone starts: past `reserved` and any span line. */
+const rootStart = (reserved: number, gap: number) => reserved + gap * 1.6;
+
+/** The box where a tooth's abbreviations are written, past its root zone. */
+export interface FindingBox {
+	toothId: string;
+	box: Box;
+}
+
+/**
+ * One box per tooth on its vestibular side, past the surface diagrams
+ * (`reserved`), span lines and root zone, like the boxes of a printed chart.
+ */
+export function getFindingBoxes(
+	{ frames, fontSize, gap }: ToothFrames,
+	reserved = 0,
+): FindingBox[] {
+	const height = fontSize * 1.5;
+	const distance = rootStart(reserved, gap) + gap * 2 + rootLength(fontSize);
+
+	return [...frames.values()].map((frame) => {
+		const width = frame.size;
+		const center = outerPoint(
+			frame,
+			distance + halfExtent(width, height, frame.outer),
+		);
+		return {
+			toothId: frame.toothId,
+			box: {
+				x: center.x - width / 2,
+				y: center.y - height / 2,
+				width,
+				height,
+			},
+		};
+	});
+}
+
+/** A square frame over the root zone of a tooth, to draw symbols in it. */
+function rootFrame(
+	frame: ToothFrame,
+	reserved: number,
+	gap: number,
+	fontSize: number,
+): ToothFrame {
+	const size = rootLength(fontSize);
+	const center = outerPoint(frame, rootStart(reserved, gap) + gap + size / 2);
+	return {
+		...frame,
+		center,
+		size,
+		box: {
+			x: center.x - size / 2,
+			y: center.y - size / 2,
+			width: size,
+			height: size,
+		},
+	};
+}
+
 /**
  * Lays out findings on the visible teeth. Unknown codes, hidden teeth,
  * invalid tooth groups and surface findings without surface diagrams are
  * skipped and reported in `issues`.
  *
  * With `surfaceLayout`, surface findings are drawn on its diagrams and
- * vestibular marks are placed past them.
+ * vestibular marks are placed past them. With `boxes`, abbreviations without
+ * `location` are written side by side in the boxes of {@link getFindingBoxes}.
+ * Findings with `location: "root"` are drawn in the root zone, before them.
  */
 export function layoutFindings(
 	findings: readonly OdontogramFinding[],
 	catalog: FindingCatalog,
-	{ frames, order, fontSize, gap }: ToothFrames,
+	toothFrames: ToothFrames,
 	surfaceLayout?: SurfaceDiagramLayout,
+	{
+		boxes = false,
+		numbers,
+	}: {
+		boxes?: boolean;
+		/** Boxes of the tooth numbers shown, keyed by FDI ID, for number circles. */
+		numbers?: ReadonlyMap<string, Box>;
+	} = {},
 ): FindingLayout {
+	const { frames, order, fontSize, gap } = toothFrames;
 	const reserved = surfaceLayout?.reserved ?? 0;
 	const diagrams = new Map(
 		surfaceLayout?.diagrams.map((diagram) => [diagram.toothId, diagram]),
@@ -539,6 +716,41 @@ export function layoutFindings(
 	const textSize_ = fontSize * 0.9;
 	// Distance already used on the vestibular side of each tooth.
 	const outerCursor = new Map<string, number>();
+	const findingBoxes = new Map(
+		boxes
+			? getFindingBoxes(toothFrames, reserved).map(({ toothId, box }) => [
+					toothId,
+					box,
+				])
+			: [],
+	);
+	/** Abbreviation a single-tooth finding writes in the box, if any. */
+	const boxTextOf = (finding: OdontogramFinding) => {
+		const definition = catalog[finding.code];
+		if (
+			!boxes ||
+			!definition ||
+			getFindingScope(definition.symbol) !== "tooth"
+		) {
+			return undefined;
+		}
+		if (textKinds.has(definition.symbol.kind)) {
+			return finding.location
+				? undefined
+				: (finding.label ?? (definition.symbol as { text: string }).text);
+		}
+		return finding.label ?? definition.boxText;
+	};
+	// Abbreviations sharing a box split it into slots, in the order given.
+	const boxTexts = new Map<string, number[]>();
+	findings.forEach((finding, index) => {
+		if (!boxTextOf(finding)) {
+			return;
+		}
+		for (const toothId of finding.teeth) {
+			boxTexts.set(toothId, [...(boxTexts.get(toothId) ?? []), index]);
+		}
+	});
 
 	const makeFinding = (
 		key: string,
@@ -580,16 +792,26 @@ export function layoutFindings(
 			return { index: fills.indexOf(index), count: fills.length };
 		};
 
-	// Spans first, so abbreviations on the same teeth are placed beyond them.
+	// Spans, then root findings, so abbreviations on the same teeth are placed
+	// beyond them.
 	const indexed = findings.map((finding, index) => ({ finding, index }));
-	const scopeOf = ({ finding }: (typeof indexed)[number]) => {
+	const rank = ({ finding }: (typeof indexed)[number]) => {
 		const definition = catalog[finding.code];
-		return definition ? getFindingScope(definition.symbol) : "tooth";
+		if (definition && getFindingScope(definition.symbol) === "span") {
+			return 0;
+		}
+		return finding.location === "root" ||
+			rootKinds.has(definition?.symbol.kind ?? "fill")
+			? 1
+			: 2;
 	};
-	const ordered = [
-		...indexed.filter((item) => scopeOf(item) === "span"),
-		...indexed.filter((item) => scopeOf(item) !== "span"),
-	];
+	const rootEnd = rootStart(reserved, gap) + gap + rootLength(fontSize);
+	const reserveRoot = (toothId: string) =>
+		outerCursor.set(
+			toothId,
+			Math.max(outerCursor.get(toothId) ?? reserved, rootEnd),
+		);
+	const ordered = [...indexed].sort((a, b) => rank(a) - rank(b));
 
 	for (const { finding, index } of ordered) {
 		const definition = catalog[finding.code];
@@ -637,11 +859,19 @@ export function layoutFindings(
 		if (scope === "tooth") {
 			for (const toothId of visible) {
 				const frame = frames.get(toothId)!;
-				let primitives: FindingPrimitive[];
+				const root = rootFrame(frame, reserved, gap, fontSize);
+				const isText = textKinds.has(symbol.kind);
+				const encircled = symbol.kind === "encircled-text";
+				const text = finding.label ?? (symbol as { text?: string }).text ?? "";
+				const boxText = boxTextOf(finding);
+				const box = boxText ? findingBoxes.get(toothId) : undefined;
+				const numberBox = numbers?.get(toothId);
+				let primitives: FindingPrimitive[] = [];
 
-				if (textKinds.has(symbol.kind)) {
-					const text = finding.label ?? (symbol as { text: string }).text;
-					const encircled = symbol.kind === "encircled-text";
+				if (isText && finding.location) {
+					const at = finding.location === "root" ? root : frame;
+					primitives = textSymbol(text, at.center, textSize_, encircled);
+				} else if (isText && !box) {
 					const { width, height } = encircled
 						? { width: textSize_ * 1.44, height: textSize_ * 1.44 }
 						: textSize(text, textSize_);
@@ -655,12 +885,53 @@ export function layoutFindings(
 						encircled,
 					);
 					outerCursor.set(toothId, distance + extent);
-				} else {
-					primitives = toothSymbol(symbol, frame, finding);
+				} else if (symbol.kind === "number-circle" && numberBox) {
+					const { x, y } = boxCenter(numberBox);
+					primitives = [
+						{
+							type: "circle",
+							cx: x,
+							cy: y,
+							r: (Math.hypot(numberBox.width, numberBox.height) / 2) * 1.1,
+						},
+					];
+				} else if (!isText) {
+					primitives = toothSymbol(
+						symbol,
+						finding.location === "root" ? root : frame,
+						finding,
+						root,
+					);
 				}
 
-				rendered.push(
-					makeFinding(
+				if (box && boxText) {
+					const slots = boxTexts.get(toothId)!;
+					const width = box.width / slots.length;
+					const boxEncircled = encircled && !finding.label;
+					// Shrinks long or many abbreviations to fit their slot.
+					const fitted = boxEncircled
+						? Math.min(width, box.height) / 1.6
+						: (width * 0.9) /
+							(Math.max(1, boxText.length) * characterWidthRatio);
+					primitives = [
+						...primitives,
+						...textSymbol(
+							boxText,
+							{
+								x: box.x + width * (slots.indexOf(index) + 0.5),
+								y: box.y + box.height / 2,
+							},
+							Math.min(textSize_, fitted, box.height * 0.75),
+							boxEncircled,
+						),
+					];
+				}
+				if (finding.location === "root" || rootKinds.has(symbol.kind)) {
+					reserveRoot(toothId);
+				}
+
+				rendered.push({
+					...makeFinding(
 						`${index}:${toothId}`,
 						finding,
 						definition,
@@ -668,7 +939,8 @@ export function layoutFindings(
 						primitives,
 						frame.size,
 					),
-				);
+					...(finding.location ? { location: finding.location } : {}),
+				});
 			}
 			continue;
 		}
@@ -689,13 +961,36 @@ export function layoutFindings(
 
 		if (scope === "between") {
 			const [a, b] = visible.map((toothId) => frames.get(toothId)!);
+			const numberBoxes = visible.map((toothId) => numbers?.get(toothId));
+			let primitives: FindingPrimitive[];
+			if (symbol.kind === "apical-text") {
+				// Between the apices: midway between both root zones.
+				const [ra, rb] = [a, b].map(
+					(frame) => rootFrame(frame, reserved, gap, fontSize).center,
+				);
+				primitives = textSymbol(
+					finding.label ?? symbol.text,
+					{ x: (ra.x + rb.x) / 2, y: (ra.y + rb.y) / 2 },
+					textSize_,
+					true,
+				);
+				visible.forEach(reserveRoot);
+			} else if (
+				symbol.kind === "fused-circles" &&
+				numberBoxes[0] &&
+				numberBoxes[1]
+			) {
+				primitives = fusedNumbers(numberBoxes[0], numberBoxes[1]);
+			} else {
+				primitives = betweenSymbol(symbol, a, b);
+			}
 			rendered.push(
 				makeFinding(
 					`${index}`,
 					finding,
 					definition,
 					visible,
-					betweenSymbol(symbol, a, b),
+					primitives,
 					Math.min(a.size, b.size),
 				),
 			);
@@ -723,7 +1018,10 @@ export function layoutFindings(
 		for (const toothId of range) {
 			outerCursor.set(
 				toothId,
-				Math.max(outerCursor.get(toothId) ?? reserved, reserved + gap * 1.6),
+				Math.max(
+					outerCursor.get(toothId) ?? reserved,
+					rootStart(reserved, gap),
+				),
 			);
 		}
 	}

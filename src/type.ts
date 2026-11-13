@@ -313,6 +313,12 @@ export interface OdontogramProps {
 	findings?: OdontogramFinding[];
 	/** Names and symbols of the finding codes; `ntsPeruFindingCatalog` by default. */
 	findingCatalog?: FindingCatalog;
+	/**
+	 * Draws a box per tooth on its vestibular side, as on the printed NTS
+	 * chart, and writes the tooth's abbreviations (`IMP`, `TC`, `M1`…) in it.
+	 * The chart grows to fit.
+	 */
+	showFindingBoxes?: boolean;
 	/** Draws a five-surface diagram next to each tooth; the chart grows to fit. */
 	showSurfaces?: boolean;
 	/**

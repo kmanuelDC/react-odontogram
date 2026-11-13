@@ -9,6 +9,38 @@ All notable changes to `@kmanueldc/react-odontogram`. The format follows
 Pratik Sharma (biomathcode). Its version numbers start again at 0.1.0;
 entries from 0.6.0 down use the upstream numbering.
 
+## [0.2.0] - 2026-11-13
+
+### Added
+
+- **Finding boxes.** `showFindingBoxes` draws a box per tooth on its
+  vestibular side, as on the printed NTS chart, and writes the tooth's
+  abbreviations (`IMP`, `TC`, `M1`…) in it. Core: `getFindingBoxes()` and the
+  `{ boxes }` option of `layoutFindings`.
+- **Crown or root.** Findings take `location: "crown" | "root"`, e.g. a root
+  fracture, root remnant or pulp treatment. Root findings are drawn in a root
+  zone on the vestibular side; names and tooltips add the location
+  (`labels.findingLocations`).
+- **NTS N.° 188 drawings.** New symbols `square` (crown), `pulp` (coronal
+  pulp), `root-line` (root canal), `post-core`, `number-circle`,
+  `fused-circles` and `apical-text`; catalog codes `post-core`
+  (espigo-muñón), `gemination` and `pulpotomy` (PP). Catalog entries take
+  `boxText`, and a finding's `label` is written in the box next to drawn
+  symbols (e.g. `CM` for a crown). `layoutFindings` takes `numbers` to circle
+  the tooth numbers.
+- **Printing.** `@media print` draws the chart in black on white (also from
+  the dark theme), keeps findings in blue and red and hides the selection.
+
+### Changed
+
+- **NTS N.° 188 catalog drawings**, see [MIGRATION.md](MIGRATION.md):
+  `crown` and `temporary-crown` are a square (`temporary-crown` writes `CT`
+  in the box); `fusion` circles the numbers of two teeth; `supernumerary` is
+  an encircled `S` between the apices of two teeth; `pulp-treatment`
+  ("Tratamiento de conductos") draws a line in the root zone and writes `TC`
+  in the box. Single-tooth `fusion` and `supernumerary` findings are reported
+  as issues.
+
 ## [0.1.1] - 2026-11-11
 
 ### Fixed
